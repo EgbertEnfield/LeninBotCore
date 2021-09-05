@@ -124,10 +124,10 @@ class Logger:
                 keys = json.load(jsonString)
             token = keys['line']['token']
             log_message = Logger.create_log_message(is_failed, message, excep_obj)
-            line_notify_api_url = 'https://notify-api.line.me/api/notify'
+            api_url = 'https://notify-api.line.me/api/notify'
             headers = {'Authorization': f'Bearer {token}'}
             data = {'message': f'\n{log_message}'}
-            requests.post(line_notify_api_url, headers=headers, data=data)
+            requests.post(api_url, headers=headers, data=data)
             self.log_local(True, "Requested LINE Notify")
         except Exception as ex:
             self.log_local(False, 'Failed to send LINE Notify', ex)
