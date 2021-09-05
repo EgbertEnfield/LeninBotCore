@@ -1,5 +1,6 @@
 import os
 import csv
+import sys
 import json
 import glob
 import tweepy
@@ -7,10 +8,9 @@ import random
 import requests
 import datetime
 from enum import Enum
-from chardet import detect
 
-key_file = './keys.json'
-proverbs_file = './proverbs.csv'
+key_file = 'keys.json'
+proverbs_file = 'proverbs.csv'
 
 
 class TweetMode(Enum):
@@ -30,7 +30,7 @@ def poston_twitter(mode, message, path=''):
             api.update_with_media(status='', filename=path)
         elif (message != ''):
             if(mode == TweetMode.Text):
-                api.update_status(message)
+                api.update_status(f'@tos\nTest: {message}')
             elif (mode == TweetMode.TextAndPicture):
                 api.update_with_media(status=message, filename=path)
         else:
@@ -47,13 +47,11 @@ def poston_twitter(mode, message, path=''):
 
 def pick_proverbs():
     try:
-        with open(proverbs_file, 'rb') as f:
-            encoding = detect(f.read())
-        with open(proverbs_file, 'r', encoding=encoding['encoding']) as f:
+        with open(proverbs_file, 'r', encoding='utf-8') as f:
             csv_lists = csv.reader(f)
-            russian = [row[0] if row[0] != '' else '' for row in csv_lists]
-            english = [row[1] if row[1] != '' else '' for row in csv_lists]
-            japanese = [row[2] if row[2] != '' else '' for row in csv_lists]
+            russian = [row[0] for row in csv_lists]
+            # english = [row[1] for row in csv_lists]
+            # japanese = [row[2] for row in csv_lists]
             x = random.randint(0, len(russian))
 
             # English and Japanese version is currently unsupported.
@@ -124,5 +122,12 @@ def log_Lnotify(is_succeeded, message='', excep_obj=None):
 
 
 if __name__ == '__main__':
-    tweet = pick_proverbs()
-    poston_twitter(TweetMode.Text, tweet)
+    switch = sys.argv[0]
+    if (switch == ''):
+        tweet = pick_proverbs()
+        poston_twitter(TweetMode.Text, tweet)
+    else:
+        if (switch == 'hello'):
+            tweet = 'Доброе утро!'
+        elif (switch == 'goodnight'):
+            tweet = 'Спокойной ночи'
