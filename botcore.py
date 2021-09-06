@@ -3,15 +3,18 @@ import csv
 import sys
 import json
 import glob
-import tweepy
 import random
 import requests
 import datetime
 from enum import Enum
 
-key_file = 'keys.json'
-proverbs_file = 'proverbs.csv'
+cwd = os.getcwd()
+key_file = f'{cwd}/keys.json'
+proverbs_file = f'{cwd}/proverbs.csv'
 
+sys.path.append(cwd)
+sys.path.append(f'{cwd}/lib')
+import tweepy
 
 class TweetMode(Enum):
     Text = 0
@@ -30,7 +33,7 @@ def poston_twitter(mode, message, path=''):
             api.update_with_media(status='', filename=path)
         elif (message != ''):
             if(mode == TweetMode.Text):
-                api.update_status(f'@tos\nTest: {message}')
+                api.update_status(f'{message}')
             elif (mode == TweetMode.TextAndPicture):
                 api.update_with_media(status=message, filename=path)
         else:
@@ -38,7 +41,7 @@ def poston_twitter(mode, message, path=''):
     except ValueError as ex:
         log_local(False, ex)
     except FileNotFoundError as ex:
-        log_local(False, f'keys.json does not found in {os.getcwd()} or picture does not found.', ex)
+        log_local(False, f'keys.json does not found in {cwd} or picture does not found.', ex)
     except Exception as ex:
         log_local(False, ex)
     else:
@@ -58,13 +61,13 @@ def pick_proverbs():
             # Because I have yet to find any proverbs translated in English or Japanese.
             return russian[x]
     except FileNotFoundError as ex:
-        log_local(False, f'proverbs.csv does not found in {os.getcwd()}', ex)
+        log_local(False, f'proverbs.csv does not found in {cwd}', ex)
         return ['', '', '']
 
 
 def pick_log_file():
     limited_log_size = 640 * 1024
-    logs = glob.glob('./log/*.log')
+    logs = glob.glob(f'{cwd}/log/*.log')
     if (len(logs) > 0):
         for log in logs:
             if (os.path.getsize(log) <= limited_log_size):
@@ -91,11 +94,12 @@ def create_log_message(is_succeeded, message='', except_obj=None):
 
 
 def log_local(is_succeeded, message='', excep_obj=None):
+    log_dir = f'{cwd}/log'
     log_file = pick_log_file()
     if (log_file == ""):
-        if (os.path.exists('./log') == False):
-            os.mkdir('./log')
-        log_file = f'./log/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
+        if (os.path.exists(log_dir) == False):
+            os.mkdir(log_dir)
+        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
         with open(log_file, 'w') as f:
             InitMessage = f'{create_log_message(True, "Created new log file.")}\n{create_log_message(is_succeeded, message, excep_obj)}'
             print(InitMessage, file=f)
@@ -122,12 +126,12 @@ def log_Lnotify(is_succeeded, message='', excep_obj=None):
 
 
 if __name__ == '__main__':
-    switch = sys.argv[0]
-    if (switch == ''):
+    args = sys.argv
+    if (len(args) == 1):
         tweet = pick_proverbs()
         poston_twitter(TweetMode.Text, tweet)
     else:
-        if (switch == 'hello'):
+        if (args[1] == 'hello'):
             tweet = 'Доброе утро!'
-        elif (switch == 'goodnight'):
+        elif (args[1] == 'goodnight'):
             tweet = 'Спокойной ночи'
