@@ -8,13 +8,13 @@ import requests
 import datetime
 from enum import Enum
 
-cwd = os.getcwd()
-key_file = f'{cwd}/keys.json'
-proverbs_file = f'{cwd}/proverbs.csv'
+CWD = os.getcwd()
+KEY_FILE = f'{CWD}/keys.json'
+SETTINGS_FILE = f'{CWD}/settings.json'
+PROVERBS_FILE = f'{CWD}/proverbs.csv'
 
-sys.path.append(cwd)
-sys.path.append(f'{cwd}/lib')
-import tweepy
+sys.path.append(f'{CWD}/lib')
+
 
 class TweetMode(Enum):
     Text = 0
@@ -22,9 +22,24 @@ class TweetMode(Enum):
     TextAndPicture = 2
 
 
-def poston_twitter(mode, message, path=''):
+def get_settings():
+    settings = {}
     try:
-        with open(key_file) as raw_json:
+        with open(SETTINGS_FILE, 'r') as raw_json:
+            settings = json.load(raw_json)
+    except Exception as ex:
+        log_local(False, f'settings.json does not found in {CWD}.', ex)
+    finally:
+        settings.setdefault('log', {})
+        settings['log'].setdefault('maxLogSize', 51200)  # 500KB
+        settings['log'].setdefault('logDirectory' f'{CWD}/log')
+        return settings
+
+
+def poston_twitter(mode, message, path=''):
+    import tweepy
+    try:
+        with open(KEY_FILE) as raw_json:
             keys = json.load(raw_json)
         auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
         auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
@@ -41,7 +56,7 @@ def poston_twitter(mode, message, path=''):
     except ValueError as ex:
         log_local(False, ex)
     except FileNotFoundError as ex:
-        log_local(False, f'keys.json does not found in {cwd} or picture does not found.', ex)
+        log_local(False, f'keys.json does not found in {CWD} or picture does not found.', ex)
     except Exception as ex:
         log_local(False, ex)
     else:
@@ -50,7 +65,7 @@ def poston_twitter(mode, message, path=''):
 
 def pick_proverbs():
     try:
-        with open(proverbs_file, 'r', encoding='utf-8') as f:
+        with open(PROVERBS_FILE, 'r', encoding='utf-8') as f:
             csv_lists = csv.reader(f)
             russian = [row[0] for row in csv_lists]
             # english = [row[1] for row in csv_lists]
@@ -61,13 +76,37 @@ def pick_proverbs():
             # Because I have yet to find any proverbs translated in English or Japanese.
             return russian[x]
     except FileNotFoundError as ex:
-        log_local(False, f'proverbs.csv does not found in {cwd}', ex)
-        return ['', '', '']
+        log_local(False, f'proverbs.csv does not found in {CWD}', ex)
+        return ''
+
+
+def new_pick_proverbs():
+    try:
+        with open(PROVERBS_FILE, 'r') as raw_json:
+            proverbs = json.load(raw_json)
+            russian = []
+            english = []
+            japanese = []
+            if (proverbs['russian']['isEnable'] == True):
+                russian = proverbs['russian']['proverbs']
+            elif (proverbs['english']['isEnable'] == True):
+                english = proverbs['engrish']['proverbs']
+            elif (proverbs['japanese']['isEnable'] == True):
+                japanese = proverbs['japanese']['proverbs']
+
+            r = random.randint(0, len(russian))
+            e = random.randint(0, len(english))
+            j = random.randint(0, len(japanese))
+            return [russian[r], english[e], japanese[j]]
+    except Exception as ex:
+        log_local(False, ex)
+        raise(ex)
 
 
 def pick_log_file():
-    limited_log_size = 640 * 1024
-    logs = glob.glob(f'{cwd}/log/*.log')
+    settings = get_settings()
+    limited_log_size = settings['log']['maxLogSize']
+    logs = glob.glob(settings['log']['log_directory'] + '/*.log')
     if (len(logs) > 0):
         for log in logs:
             if (os.path.getsize(log) <= limited_log_size):
@@ -94,7 +133,7 @@ def create_log_message(is_succeeded, message='', except_obj=None):
 
 
 def log_local(is_succeeded, message='', excep_obj=None):
-    log_dir = f'{cwd}/log'
+    log_dir = f'{CWD}/log'
     log_file = pick_log_file()
     if (log_file == ""):
         if (os.path.exists(log_dir) == False):
@@ -113,7 +152,7 @@ def log_local(is_succeeded, message='', excep_obj=None):
 '''
 def log_Lnotify(is_succeeded, message='', excep_obj=None):
     try:
-        with open(key_file) as raw_json:
+        with open(KEY_FILE) as raw_json:
             keys = json.load(raw_json)
         token = keys['line']['token']
         api_url = 'https://notify-api.line.me/api/notify'

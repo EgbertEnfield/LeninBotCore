@@ -1,0 +1,14 @@
+{
+    "russian": {
+        "isEnabled": true,
+        "proverbs": []
+    },
+    "english": {
+        "isEnabled": false,
+        "proverbs": []
+    },
+    "jaoanese": {
+        "isEnabled": false,
+        "proverbs": []
+    }
+}
