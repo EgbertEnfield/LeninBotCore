@@ -1,17 +1,18 @@
+import argparse
 import os
-import csv
 import sys
 import json
 import glob
 import random
-import requests
 import datetime
 from enum import Enum
+import argparse
 
 CWD = os.getcwd()
 KEY_FILE = f'{CWD}/keys.json'
+TWEETS_FILE = f'{CWD}/tweets.json'
 SETTINGS_FILE = f'{CWD}/settings.json'
-PROVERBS_FILE = f'{CWD}/proverbs.csv'
+VERSION = f'1.2.908.316'
 
 sys.path.append(f'{CWD}/lib')
 
@@ -22,91 +23,98 @@ class TweetMode(Enum):
     TextAndPicture = 2
 
 
+class Result(Enum):
+    Error = '[error]  '
+    Caution = '[caution]'
+    Info = '[info]   '
+    Success = '[success]'
+
+
+def poston_twitter(mode: TweetMode, message: str, path=''):
+    import tweepy
+    try:
+        specials = parse_args()
+        with open(KEY_FILE) as raw_json:
+            keys = json.load(raw_json)
+        auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
+        auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
+        api = tweepy.API(auth)
+        if (specials['is_debug'] == False):
+            if (mode == TweetMode.Picture):
+                api.update_with_media(status='', filename=path)
+            elif (message != ''):
+                if(mode == TweetMode.Text):
+                    api.update_status(f'{message}')
+                elif (mode == TweetMode.TextAndPicture):
+                    api.update_with_media(status=message, filename=path)
+            else:
+                raise ValueError('Tweet message is empty.')
+        else:
+            if (path != ''):
+                log_local(Result.Info, 'Debug mode only support text message.')
+            if (message == '' and mode != TweetMode.Picture):
+                log_local(Result.Caution, 'Tweet message is empty.')
+            print(message)
+    except FileNotFoundError as ex:
+        log_local(Result.Error, f'keys.json does not found in {CWD} or picture does not found.', ex)
+    except Exception as ex:
+        log_local(Result.Error, '', ex)
+    else:
+        log_local(Result.Success, 'Tweeted successfly.')
+
+
+def select_proverb():
+    try:
+        with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
+            proverbs = json.load(raw_json)
+            selected = []
+            if (proverbs['russian']['isEnable'] == True):
+                if (len(proverbs['russian']['proverbs']) != 0):
+                    russian = proverbs['russian']['proverbs']
+                    r = random.randint(0, len(russian)-1)
+                    selected.append(russian[r])
+                else:
+                    raise ValueError('proverbs list is empty')
+            if (proverbs['english']['isEnable'] == True):
+                if (len(proverbs['english']['proverbs']) != 0):
+                    english = proverbs['english']['proverbs']
+                    e = random.randint(0, len(english)-1)
+                    selected.append(english[e])
+                else:
+                    raise ValueError('proverbs list is empty')
+            if (proverbs['japanese']['isEnable'] == True):
+                if (len(proverbs['japanese']['proverbs']) != 0):
+                    japanese = proverbs['japanese']['proverbs']
+                    j = random.randint(0, len(japanese)-1)
+                    selected.append(japanese[j])
+                else:
+                    raise ValueError('proverbs list is empty')
+
+            s = random.randint(0, len(selected)-1)
+            return selected[s]
+    except Exception as ex:
+        log_local(Result.Error, '', ex)
+        raise(ex)
+
+
 def get_settings():
     settings = {}
     try:
         with open(SETTINGS_FILE, 'r') as raw_json:
             settings = json.load(raw_json)
     except Exception as ex:
-        log_local(False, f'settings.json does not found in {CWD}.', ex)
+        log_local(Result.Error, f'settings.json does not found in {CWD}.', ex)
     finally:
         settings.setdefault('log', {})
         settings['log'].setdefault('maxLogSize', 51200)  # 500KB
-        settings['log'].setdefault('logDirectory' f'{CWD}/log')
+        settings['log'].setdefault('logDirectory', f'{CWD}/log')
         return settings
-
-
-def poston_twitter(mode, message, path=''):
-    import tweepy
-    try:
-        with open(KEY_FILE) as raw_json:
-            keys = json.load(raw_json)
-        auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
-        auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
-        api = tweepy.API(auth)
-        if (mode == TweetMode.Picture):
-            api.update_with_media(status='', filename=path)
-        elif (message != ''):
-            if(mode == TweetMode.Text):
-                api.update_status(f'{message}')
-            elif (mode == TweetMode.TextAndPicture):
-                api.update_with_media(status=message, filename=path)
-        else:
-            raise ValueError('Tweet message is empty.')
-    except ValueError as ex:
-        log_local(False, ex)
-    except FileNotFoundError as ex:
-        log_local(False, f'keys.json does not found in {CWD} or picture does not found.', ex)
-    except Exception as ex:
-        log_local(False, ex)
-    else:
-        log_local(True, 'Tweeted successfly.')
-
-
-def pick_proverbs():
-    try:
-        with open(PROVERBS_FILE, 'r', encoding='utf-8') as f:
-            csv_lists = csv.reader(f)
-            russian = [row[0] for row in csv_lists]
-            # english = [row[1] for row in csv_lists]
-            # japanese = [row[2] for row in csv_lists]
-            x = random.randint(0, len(russian))
-
-            # English and Japanese version is currently unsupported.
-            # Because I have yet to find any proverbs translated in English or Japanese.
-            return russian[x]
-    except FileNotFoundError as ex:
-        log_local(False, f'proverbs.csv does not found in {CWD}', ex)
-        return ''
-
-
-def new_pick_proverbs():
-    try:
-        with open(PROVERBS_FILE, 'r') as raw_json:
-            proverbs = json.load(raw_json)
-            russian = []
-            english = []
-            japanese = []
-            if (proverbs['russian']['isEnable'] == True):
-                russian = proverbs['russian']['proverbs']
-            elif (proverbs['english']['isEnable'] == True):
-                english = proverbs['engrish']['proverbs']
-            elif (proverbs['japanese']['isEnable'] == True):
-                japanese = proverbs['japanese']['proverbs']
-
-            r = random.randint(0, len(russian))
-            e = random.randint(0, len(english))
-            j = random.randint(0, len(japanese))
-            return [russian[r], english[e], japanese[j]]
-    except Exception as ex:
-        log_local(False, ex)
-        raise(ex)
 
 
 def pick_log_file():
     settings = get_settings()
     limited_log_size = settings['log']['maxLogSize']
-    logs = glob.glob(settings['log']['log_directory'] + '/*.log')
+    logs = glob.glob(settings['log']['logDirectory'] + '/*.log')
     if (len(logs) > 0):
         for log in logs:
             if (os.path.getsize(log) <= limited_log_size):
@@ -116,23 +124,23 @@ def pick_log_file():
         return ''
 
 
-def create_log_message(is_succeeded, message='', except_obj=None):
-    if(is_succeeded == True):
-        if (message == ''):
-            raise ValueError('Log message is empty.')
-        else:
-            return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  [Succeeded] {message}'
-    else:
+def create_log_message(result: Result, message, except_obj=None):
+    if (result == Result.Error):
         if(except_obj == None):
             raise ValueError('Exception object is none.')
         else:
             if (message == ''):
-                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  [Failed]    {type(except_obj)}{except_obj}'
+                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {Result.Error.value} {type(except_obj)}{except_obj}'
             else:
-                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  [Failed]    {type(except_obj)}{message}'
+                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {Result.Error.value} {type(except_obj)}{message}'
+    else:
+        if (message == ''):
+            raise ValueError('Log message is empty.')
+        else:
+            return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {result.value} {message}'
 
 
-def log_local(is_succeeded, message='', excep_obj=None):
+def log_local(result: Result, message, excep_obj=None):
     log_dir = f'{CWD}/log'
     log_file = pick_log_file()
     if (log_file == ""):
@@ -140,24 +148,58 @@ def log_local(is_succeeded, message='', excep_obj=None):
             os.mkdir(log_dir)
         log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
         with open(log_file, 'w') as f:
-            InitMessage = f'{create_log_message(True, "Created new log file.")}\n{create_log_message(is_succeeded, message, excep_obj)}'
+            InitMessage = f'{create_log_message(Result.Success, "Created new log file.")}\n{create_log_message(result, message, excep_obj)}'
             print(InitMessage, file=f)
     else:
         with open(log_file, mode='a') as f:
-            log_message = create_log_message(is_succeeded, message, excep_obj)
+            log_message = create_log_message(result, message, excep_obj)
             print(log_message, file=f)
+
+
+def parse_args():
+    args = sys.argv
+    args.pop(0)
+    if (len(args) == 0):
+        return {
+            'is_debug': False,
+            'is_goodmorning': False,
+            'is_goodnight': False,
+        }
+    a = argparse.ArgumentParser(
+        prog='botcore.py',
+        usage='python3.9 botcore.py [-d|--debug] [switches...]',
+        epilog='MIT License  Copyright (c) 2021 Семён Мошнко  GitHub: https://github.com/Sovietball1922/LeninBotCore',
+        add_help=True
+    )
+    a.add_argument('-v', '--version')
+    a.add_argument('-d', '--debug', action='store_true')
+    a.add_argument('-m', '--good_morning', action='store_true')
+    a.add_argument('-n', '--good_night', action='store_true')
+    arg = a.parse_args(args)
+    if (arg.good_morning == True and arg.good_night == True):
+        log_local(Result.Caution, '-m and -n switch cannot use at same time')
+        return {
+            'is_debug': arg.debug,
+            'is_goodmorning': False,
+            'is_goodnight': False,
+        }
+    return {
+        'is_debug': arg.debug,
+        'is_goodmorning': arg.good_morning,
+        'is_goodnight': arg.good_night,
+    }
 
 
 # This will not maybe use.
 '''
-def log_Lnotify(is_succeeded, message='', excep_obj=None):
+def log_Lnotify(result, message='', excep_obj=None):
     try:
         with open(KEY_FILE) as raw_json:
             keys = json.load(raw_json)
         token = keys['line']['token']
         api_url = 'https://notify-api.line.me/api/notify'
-        log_message = create_log_message(is_succeeded, message, excep_obj)
-        requests.post(api_url, headers={'Authorization': f'Bearer {token}'}, data={'message': f'\n{log_message}'})
+        log_message = create_log_message(result, message, excep_obj)
+        requests.post(api_url, headers={'Authorization': f'Bearer {token}'}, data={'message': f'n{log_message}'})
         log_local(True, "Requested LINE Notify")
     except Exception as ex:
         log_local(False, 'Failed to send LINE Notify', ex)
@@ -165,12 +207,5 @@ def log_Lnotify(is_succeeded, message='', excep_obj=None):
 
 
 if __name__ == '__main__':
-    args = sys.argv
-    if (len(args) == 1):
-        tweet = pick_proverbs()
-        poston_twitter(TweetMode.Text, tweet)
-    else:
-        if (args[1] == 'hello'):
-            tweet = 'Доброе утро!'
-        elif (args[1] == 'goodnight'):
-            tweet = 'Спокойной ночи'
+    tweet = select_proverb()
+    poston_twitter(TweetMode.Text, tweet)
