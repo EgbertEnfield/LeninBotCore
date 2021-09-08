@@ -8,12 +8,6 @@ import datetime
 import argparse
 from enum import Enum
 
-CWD = os.getcwd()
-KEY_FILE = f'{CWD}/keys.json'
-TWEETS_FILE = f'{CWD}/tweets.json'
-SETTINGS_FILE = f'{CWD}/settings.json'
-VERSION = f'1.2.908.938'
-
 
 class TweetMode(Enum):
     Text = 0
@@ -30,13 +24,13 @@ class Result(Enum):
 
 def poston_twitter(mode: TweetMode, message: str, path=''):
     try:
-        specials = parse_args()
+        switches = SWITCHES
         with open(KEY_FILE) as raw_json:
             keys = json.load(raw_json)
         auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
         auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
         api = tweepy.API(auth)
-        if (specials['is_debug'] == False):
+        if (switches['is_debug'] == False):
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
             elif (message != ''):
@@ -47,11 +41,16 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
             else:
                 raise ValueError('Tweet message is empty.')
         else:
-            if (path != ''):
-                log_local(Result.Info, 'Debug mode only support text message.')
-            if (message == '' and mode != TweetMode.Picture):
-                log_local(Result.Caution, 'Tweet message is empty.')
-            print(message)
+            if (mode == TweetMode.Picture and os.path.exists(path) == True):
+                print(path)
+            elif (message != ''):
+                if(mode == TweetMode.Text):
+                    print(message)
+                elif (mode == TweetMode.TextAndPicture and os.path.exists(path) == True):
+                    print(message)
+                    print(path)
+            else:
+                raise ValueError('Tweet message is empty.')
     except FileNotFoundError as ex:
         log_local(Result.Error, f'keys.json does not found in {CWD} or picture does not found.', ex)
     except Exception as ex:
@@ -139,7 +138,8 @@ def create_log_message(result: Result, message, except_obj=None):
 
 def log_local(result: Result, message, excep_obj=None):
     log_dir = f'{CWD}/log'
-    log_file = pick_log_file()
+    log_file = LOG_FILE
+    switches = SWITCHES
     if (log_file == ""):
         if (os.path.exists(log_dir) == False):
             os.mkdir(log_dir)
@@ -147,10 +147,14 @@ def log_local(result: Result, message, excep_obj=None):
         with open(log_file, 'w') as f:
             InitMessage = f'{create_log_message(Result.Success, "Created new log file.")}\n{create_log_message(result, message, excep_obj)}'
             print(InitMessage, file=f)
+            if (switches['is_verbose'] == True):
+                print(InitMessage)
     else:
         with open(log_file, mode='a') as f:
             log_message = create_log_message(result, message, excep_obj)
             print(log_message, file=f)
+            if (switches['is_verbose'] == True):
+                print(log_message)
 
 
 def parse_args():
@@ -159,6 +163,7 @@ def parse_args():
     if (len(args) == 0):
         return {
             'is_debug': False,
+            'is_verbose': False,
             'is_goodmorning': False,
             'is_goodnight': False,
         }
@@ -168,7 +173,8 @@ def parse_args():
         epilog='MIT License  Copyright (c) 2021 Семён Мошнко  GitHub: https://github.com/Sovietball1922/LeninBotCore',
         add_help=False
     )
-    a.add_argument('-v', '--version', action='store_true')
+    a.add_argument('--version', action='store_true')
+    a.add_argument('-v', '--verbose', action='store_true')
     a.add_argument('-d', '--debug', action='store_true')
     a.add_argument('-m', '--good_morning', action='store_true')
     a.add_argument('-n', '--good_night', action='store_true')
@@ -181,11 +187,13 @@ def parse_args():
         log_local(Result.Caution, '-m and -n switch cannot use at same time')
         return {
             'is_debug': arg.debug,
+            'is_verbose': arg.verbose,
             'is_goodmorning': False,
             'is_goodnight': False,
         }
     return {
         'is_debug': arg.debug,
+        'is_verbose': arg.verbose,
         'is_goodmorning': arg.good_morning,
         'is_goodnight': arg.good_night,
     }
@@ -206,6 +214,14 @@ def log_Lnotify(result, message='', excep_obj=None):
         log_local(False, 'Failed to send LINE Notify', ex)
 '''
 
+CWD = os.getcwd()
+VERSION = f'1.2.909.101'
+KEY_FILE = f'{CWD}/keys.json'
+TWEETS_FILE = f'{CWD}/tweets.json'
+SETTINGS_FILE = f'{CWD}/settings.json'
+SWITCHES = parse_args()
+SETTINGS = get_settings()
+LOG_FILE = pick_log_file()
 
 if __name__ == '__main__':
     tweet = select_proverb()
