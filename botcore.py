@@ -1,20 +1,18 @@
-import argparse
 import os
 import sys
 import json
 import glob
+import tweepy
 import random
 import datetime
-from enum import Enum
 import argparse
+from enum import Enum
 
 CWD = os.getcwd()
 KEY_FILE = f'{CWD}/keys.json'
 TWEETS_FILE = f'{CWD}/tweets.json'
 SETTINGS_FILE = f'{CWD}/settings.json'
-VERSION = f'1.2.908.316'
-
-sys.path.append(f'{CWD}/lib')
+VERSION = f'1.2.908.938'
 
 
 class TweetMode(Enum):
@@ -31,7 +29,6 @@ class Result(Enum):
 
 
 def poston_twitter(mode: TweetMode, message: str, path=''):
-    import tweepy
     try:
         specials = parse_args()
         with open(KEY_FILE) as raw_json:
@@ -60,7 +57,7 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
     except Exception as ex:
         log_local(Result.Error, '', ex)
     else:
-        log_local(Result.Success, 'Tweeted successfly.')
+        log_local(Result.Success, 'Tweeted successfully.')
 
 
 def select_proverb():
@@ -169,13 +166,17 @@ def parse_args():
         prog='botcore.py',
         usage='python3.9 botcore.py [-d|--debug] [switches...]',
         epilog='MIT License  Copyright (c) 2021 Семён Мошнко  GitHub: https://github.com/Sovietball1922/LeninBotCore',
-        add_help=True
+        add_help=False
     )
-    a.add_argument('-v', '--version')
+    a.add_argument('-v', '--version', action='store_true')
     a.add_argument('-d', '--debug', action='store_true')
     a.add_argument('-m', '--good_morning', action='store_true')
     a.add_argument('-n', '--good_night', action='store_true')
+    a.add_argument('-?', '--help', action='help')
     arg = a.parse_args(args)
+    if (arg.version == True):
+        print(f'botcore.py version: {VERSION}')
+        sys.exit()
     if (arg.good_morning == True and arg.good_night == True):
         log_local(Result.Caution, '-m and -n switch cannot use at same time')
         return {
