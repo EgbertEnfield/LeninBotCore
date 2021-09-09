@@ -24,13 +24,13 @@ class Result(Enum):
 
 def poston_twitter(mode: TweetMode, message: str, path=''):
     try:
-        switches = SWITCHES
+        settings = SETTINGS
         with open(KEY_FILE) as raw_json:
             keys = json.load(raw_json)
         auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
         auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
         api = tweepy.API(auth)
-        if (switches['is_debug'] == False):
+        if (settings['is_debug'] == False):
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
             elif (message != ''):
@@ -61,33 +61,38 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
 
 def select_proverb():
     try:
-        with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
-            proverbs = json.load(raw_json)
-            selected = []
-            if (proverbs['russian']['isEnable'] == True):
-                if (len(proverbs['russian']['proverbs']) != 0):
-                    russian = proverbs['russian']['proverbs']
-                    r = random.randint(0, len(russian)-1)
-                    selected.append(russian[r])
-                else:
-                    raise ValueError('proverbs list is empty')
-            if (proverbs['english']['isEnable'] == True):
-                if (len(proverbs['english']['proverbs']) != 0):
-                    english = proverbs['english']['proverbs']
-                    e = random.randint(0, len(english)-1)
-                    selected.append(english[e])
-                else:
-                    raise ValueError('proverbs list is empty')
-            if (proverbs['japanese']['isEnable'] == True):
-                if (len(proverbs['japanese']['proverbs']) != 0):
-                    japanese = proverbs['japanese']['proverbs']
-                    j = random.randint(0, len(japanese)-1)
-                    selected.append(japanese[j])
-                else:
-                    raise ValueError('proverbs list is empty')
-
-            s = random.randint(0, len(selected)-1)
-            return selected[s]
+        settings = SETTINGS
+        if (settings['is_morning'] == True):
+            return ''
+        elif (settings['is_night'] == True):
+            return ''
+        else:
+            with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
+                proverbs = json.load(raw_json)
+                selected = []
+                if (proverbs['russian']['isEnable'] == True):
+                    if (len(proverbs['russian']['proverbs']) != 0):
+                        russian = proverbs['russian']['proverbs']
+                        r = random.randint(0, len(russian)-1)
+                        selected.append(russian[r])
+                    else:
+                        raise ValueError('proverbs list is empty')
+                if (proverbs['english']['isEnable'] == True):
+                    if (len(proverbs['english']['proverbs']) != 0):
+                        english = proverbs['english']['proverbs']
+                        e = random.randint(0, len(english)-1)
+                        selected.append(english[e])
+                    else:
+                        raise ValueError('proverbs list is empty')
+                if (proverbs['japanese']['isEnable'] == True):
+                    if (len(proverbs['japanese']['proverbs']) != 0):
+                        japanese = proverbs['japanese']['proverbs']
+                        j = random.randint(0, len(japanese)-1)
+                        selected.append(japanese[j])
+                    else:
+                        raise ValueError('proverbs list is empty')
+                s = random.randint(0, len(selected)-1)
+                return selected[s]
     except Exception as ex:
         log_local(Result.Error, '', ex)
         raise(ex)
@@ -104,6 +109,9 @@ def get_settings():
         settings.setdefault('log', {})
         settings['log'].setdefault('maxLogSize', 51200)  # 500KB
         settings['log'].setdefault('logDirectory', f'{CWD}/log')
+        settings['log'].setdefault('logDatetimeFormat', '%y-%m-%d-%H-%M-%S')
+        settings.setdefault('main', {})
+        settings['main'].setdefault('ignoreError', True)
         return settings
 
 
@@ -121,25 +129,27 @@ def pick_log_file():
 
 
 def create_log_message(result: Result, message, except_obj=None):
+    settings = SETTINGS
+    dtformat = settings['log']['logDatetimeFormat']
     if (result == Result.Error):
         if(except_obj == None):
             raise ValueError('Exception object is none.')
         else:
             if (message == ''):
-                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {Result.Error.value} {type(except_obj)}{except_obj}'
+                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(except_obj)}{except_obj}'
             else:
-                return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {Result.Error.value} {type(except_obj)}{message}'
+                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(except_obj)}{message}'
     else:
         if (message == ''):
             raise ValueError('Log message is empty.')
         else:
-            return f'{datetime.datetime.now().strftime("%y-%m-%d-%H-%M-%S")}  {result.value} {message}'
+            return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}'
 
 
 def log_local(result: Result, message, excep_obj=None):
     log_dir = f'{CWD}/log'
     log_file = LOG_FILE
-    switches = SWITCHES
+    settings = SETTINGS
     if (log_file == ""):
         if (os.path.exists(log_dir) == False):
             os.mkdir(log_dir)
@@ -147,13 +157,13 @@ def log_local(result: Result, message, excep_obj=None):
         with open(log_file, 'w') as f:
             InitMessage = f'{create_log_message(Result.Success, "Created new log file.")}\n{create_log_message(result, message, excep_obj)}'
             print(InitMessage, file=f)
-            if (switches['is_verbose'] == True):
+            if (settings['args']['is_verbose'] == True):
                 print(InitMessage)
     else:
-        with open(log_file, mode='a') as f:
+        with open(log_file, mode='parser') as f:
             log_message = create_log_message(result, message, excep_obj)
             print(log_message, file=f)
-            if (switches['is_verbose'] == True):
+            if (settings['args']['is_verbose'] == True):
                 print(log_message)
 
 
@@ -161,42 +171,42 @@ def parse_args():
     args = sys.argv
     args.pop(0)
     if (len(args) == 0):
-        return {
+        return {'args': {
             'is_debug': False,
             'is_verbose': False,
             'is_goodmorning': False,
             'is_goodnight': False,
-        }
-    a = argparse.ArgumentParser(
+        }}
+    parser = argparse.ArgumentParser(
         prog='botcore.py',
-        usage='python3.9 botcore.py [-d|--debug] [switches...]',
+        usage='python3.9 botcore.py [-d|--debug] [settings...]',
         epilog='MIT License  Copyright (c) 2021 Семён Мошнко  GitHub: https://github.com/Sovietball1922/LeninBotCore',
         add_help=False
     )
-    a.add_argument('--version', action='store_true')
-    a.add_argument('-v', '--verbose', action='store_true')
-    a.add_argument('-d', '--debug', action='store_true')
-    a.add_argument('-m', '--good_morning', action='store_true')
-    a.add_argument('-n', '--good_night', action='store_true')
-    a.add_argument('-?', '--help', action='help')
-    arg = a.parse_args(args)
+    parser.add_argument('--version', action='store_true')
+    parser.add_argument('-v', '--verbose', action='store_true')
+    parser.add_argument('-d', '--debug', action='store_true')
+    parser.add_argument('-m', '--good_morning', action='store_true')
+    parser.add_argument('-n', '--good_night', action='store_true')
+    parser.add_argument('-?', '--help', action='help')
+    arg = parser.parse_args(args)
     if (arg.version == True):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
     if (arg.good_morning == True and arg.good_night == True):
         log_local(Result.Caution, '-m and -n switch cannot use at same time')
-        return {
+        return {'args': {
             'is_debug': arg.debug,
             'is_verbose': arg.verbose,
             'is_goodmorning': False,
             'is_goodnight': False,
-        }
-    return {
+        }}
+    return {'args': {
         'is_debug': arg.debug,
         'is_verbose': arg.verbose,
         'is_goodmorning': arg.good_morning,
         'is_goodnight': arg.good_night,
-    }
+    }}
 
 
 # This will not maybe use.
@@ -219,8 +229,7 @@ VERSION = f'1.2.909.101'
 KEY_FILE = f'{CWD}/keys.json'
 TWEETS_FILE = f'{CWD}/tweets.json'
 SETTINGS_FILE = f'{CWD}/settings.json'
-SWITCHES = parse_args()
-SETTINGS = get_settings()
+SETTINGS = parse_args() | get_settings()
 LOG_FILE = pick_log_file()
 
 if __name__ == '__main__':
