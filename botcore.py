@@ -219,7 +219,7 @@ def parse_args():
 
 
 CWD = os.getcwd()
-VERSION = f'1.2.910.1717'
+VERSION = f'1.2.910.1718'
 KEY_FILE = f'{CWD}/keys.json'
 TWEETS_FILE = f'{CWD}/tweets.json'
 SETTINGS_FILE = f'{CWD}/settings.json'

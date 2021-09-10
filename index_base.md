@@ -1,4 +1,4 @@
-# LeninBotCore Ver. 1.2.910,1717
+# LeninBotCore Ver. 1.2.910,1718
 
 ## Twitter Bot using Twitter API → [Follow @Lenin_Bot_1917](https://twitter.com/Lenin_Bot_1917?ref_src=twsrc%5Etfw)
 
