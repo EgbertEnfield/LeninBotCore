@@ -1,5 +1,9 @@
 {
+    "main": {
+        "ignoreError": true
+    },
     "log": {
-        "maxLogSize": 512000
+        "maxLogSize": 512000,
+        "isLogStacktrace": false
     }
 }

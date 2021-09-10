@@ -6,6 +6,7 @@ import tweepy
 import random
 import datetime
 import argparse
+import traceback
 from enum import Enum
 
 
@@ -30,7 +31,7 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
         auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
         auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
         api = tweepy.API(auth)
-        if (settings['is_debug'] == False):
+        if (settings['args']['is_debug'] == False):
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
             elif (message != ''):
@@ -62,9 +63,9 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
 def select_proverb():
     try:
         settings = SETTINGS
-        if (settings['is_morning'] == True):
-            return ''
-        elif (settings['is_night'] == True):
+        if (settings['args']['is_goodmorning'] == True):
+            return 'Доброе утро'
+        elif (settings['args']['is_goodnight'] == True):
             return ''
         else:
             with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
@@ -95,7 +96,6 @@ def select_proverb():
                 return selected[s]
     except Exception as ex:
         log_local(Result.Error, '', ex)
-        raise(ex)
 
 
 def get_settings():
@@ -109,6 +109,7 @@ def get_settings():
         settings.setdefault('log', {})
         settings['log'].setdefault('maxLogSize', 51200)  # 500KB
         settings['log'].setdefault('logDirectory', f'{CWD}/log')
+        settings['log'].setdefault('isLogStacktrace', False)
         settings['log'].setdefault('logDatetimeFormat', '%y-%m-%d-%H-%M-%S')
         settings.setdefault('main', {})
         settings['main'].setdefault('ignoreError', True)
@@ -118,53 +119,58 @@ def get_settings():
 def pick_log_file():
     settings = get_settings()
     limited_log_size = settings['log']['maxLogSize']
+    log_dir = settings['log']['logDirectory']
     logs = glob.glob(settings['log']['logDirectory'] + '/*.log')
     if (len(logs) > 0):
         for log in logs:
             if (os.path.getsize(log) <= limited_log_size):
                 return log
-        return ''
+        return f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
     else:
-        return ''
+        return f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
 
 
-def create_log_message(result: Result, message, except_obj=None):
+def create_log_message(result: Result, message, excep_obj=None):
     settings = SETTINGS
     dtformat = settings['log']['logDatetimeFormat']
     if (result == Result.Error):
-        if(except_obj == None):
+        if(excep_obj == None):
             raise ValueError('Exception object is none.')
         else:
+            stacktrace = ''
+            if (settings['log']['isLogStacktrace'] == True):
+                stacktrace = traceback.format_exc()
             if (message == ''):
-                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(except_obj)}{except_obj}'
+                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{excep_obj}\n{stacktrace}'
             else:
-                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(except_obj)}{message}'
+                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{message}\n{stacktrace}'
     else:
         if (message == ''):
             raise ValueError('Log message is empty.')
         else:
-            return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}'
+            return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}\n'
 
 
 def log_local(result: Result, message, excep_obj=None):
-    log_dir = f'{CWD}/log'
     log_file = LOG_FILE
     settings = SETTINGS
-    if (log_file == ""):
+    log_dir = str(settings['log']['logDirectory'])
+    log_message = create_log_message(result, message, excep_obj)
+    if (os.path.exists(log_file) == False):
         if (os.path.exists(log_dir) == False):
             os.mkdir(log_dir)
-        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
         with open(log_file, 'w') as f:
-            InitMessage = f'{create_log_message(Result.Success, "Created new log file.")}\n{create_log_message(result, message, excep_obj)}'
-            print(InitMessage, file=f)
+            print(log_message, file=f, end='')
             if (settings['args']['is_verbose'] == True):
-                print(InitMessage)
+                print(log_message, end='')
     else:
-        with open(log_file, mode='parser') as f:
-            log_message = create_log_message(result, message, excep_obj)
-            print(log_message, file=f)
+        with open(log_file, mode='a') as f:
+            print(log_message, file=f, end='')
             if (settings['args']['is_verbose'] == True):
-                print(log_message)
+                print(log_message, end='')
+
+    if (result == Result.Error and settings['main']['ignoreError'] == False):
+        raise (excep_obj)
 
 
 def parse_args():
@@ -209,21 +215,6 @@ def parse_args():
     }}
 
 
-# This will not maybe use.
-'''
-def log_Lnotify(result, message='', excep_obj=None):
-    try:
-        with open(KEY_FILE) as raw_json:
-            keys = json.load(raw_json)
-        token = keys['line']['token']
-        api_url = 'https://notify-api.line.me/api/notify'
-        log_message = create_log_message(result, message, excep_obj)
-        requests.post(api_url, headers={'Authorization': f'Bearer {token}'}, data={'message': f'n{log_message}'})
-        log_local(True, "Requested LINE Notify")
-    except Exception as ex:
-        log_local(False, 'Failed to send LINE Notify', ex)
-'''
-
 CWD = os.getcwd()
 VERSION = f'1.2.909.101'
 KEY_FILE = f'{CWD}/keys.json'
@@ -234,4 +225,4 @@ LOG_FILE = pick_log_file()
 
 if __name__ == '__main__':
     tweet = select_proverb()
-    poston_twitter(TweetMode.Text, tweet)
+    poston_twitter(TweetMode.Text, str(tweet))
