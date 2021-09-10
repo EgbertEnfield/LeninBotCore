@@ -1,3 +1,4 @@
+from logging import exception
 import os
 import sys
 import json
@@ -31,17 +32,7 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
         auth = tweepy.OAuthHandler(keys['twitter']['apiKey'], keys['twitter']['apiSecret'])
         auth.set_access_token(keys['twitter']['token'], keys['twitter']['tokenSecret'])
         api = tweepy.API(auth)
-        if (settings['args']['is_debug'] == False):
-            if (mode == TweetMode.Picture):
-                api.update_with_media(status='', filename=path)
-            elif (message != ''):
-                if(mode == TweetMode.Text):
-                    api.update_status(f'{message}')
-                elif (mode == TweetMode.TextAndPicture):
-                    api.update_with_media(status=message, filename=path)
-            else:
-                raise ValueError('Tweet message is empty.')
-        else:
+        if (settings['args']['isDebugMode'] | settings['main']['isDebugMode'] == True):
             if (mode == TweetMode.Picture and os.path.exists(path) == True):
                 print(path)
             elif (message != ''):
@@ -50,6 +41,16 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
                 elif (mode == TweetMode.TextAndPicture and os.path.exists(path) == True):
                     print(message)
                     print(path)
+            else:
+                raise ValueError('Tweet message is empty.')
+        else:
+            if (mode == TweetMode.Picture):
+                api.update_with_media(status='', filename=path)
+            elif (message != ''):
+                if(mode == TweetMode.Text):
+                    api.update_status(f'{message}')
+                elif (mode == TweetMode.TextAndPicture):
+                    api.update_with_media(status=message, filename=path)
             else:
                 raise ValueError('Tweet message is empty.')
     except FileNotFoundError as ex:
@@ -63,9 +64,9 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
 def select_proverb():
     try:
         settings = SETTINGS
-        if (settings['args']['is_goodmorning'] == True):
+        if (settings['args']['isGoodmorning'] == True):
             return 'Доброе утро'
-        elif (settings['args']['is_goodnight'] == True):
+        elif (settings['args']['isGoodnight'] == True):
             return ''
         else:
             with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
@@ -96,24 +97,7 @@ def select_proverb():
                 return selected[s]
     except Exception as ex:
         log_local(Result.Error, '', ex)
-
-
-def get_settings():
-    settings = {}
-    try:
-        with open(SETTINGS_FILE, 'r') as raw_json:
-            settings = json.load(raw_json)
-    except Exception as ex:
-        log_local(Result.Error, f'settings.json does not found in {CWD}.', ex)
-    finally:
-        settings.setdefault('log', {})
-        settings['log'].setdefault('maxLogSize', 51200)  # 500KB
-        settings['log'].setdefault('logDirectory', f'{CWD}/log')
-        settings['log'].setdefault('isLogStacktrace', False)
-        settings['log'].setdefault('logDatetimeFormat', '%y-%m-%d-%H-%M-%S')
-        settings.setdefault('main', {})
-        settings['main'].setdefault('ignoreError', True)
-        return settings
+        return ''
 
 
 def pick_log_file():
@@ -161,27 +145,46 @@ def log_local(result: Result, message, excep_obj=None):
             os.mkdir(log_dir)
         with open(log_file, 'w') as f:
             print(log_message, file=f, end='')
-            if (settings['args']['is_verbose'] == True):
+            if (settings['args']['isShowLogOutput'] | settings['main']['isShowLogOutput'] == True):
                 print(log_message, end='')
     else:
         with open(log_file, mode='a') as f:
             print(log_message, file=f, end='')
-            if (settings['args']['is_verbose'] == True):
+            if (settings['args']['isShowLogOutput'] | settings['main']['isShowLogOutput'] == True):
                 print(log_message, end='')
 
     if (result == Result.Error and settings['main']['ignoreError'] == False):
         raise (excep_obj)
 
 
+def get_settings():
+    settings = {}
+    try:
+        with open(SETTINGS_FILE, 'r') as raw_json:
+            settings = json.load(raw_json)
+    except Exception as ex:
+        log_local(Result.Error, f'settings.json does not found in {CWD}.', ex)
+    finally:
+        settings.setdefault('log', {})
+        settings['log'].setdefault('maxLogSize', 51200)  # 500KB
+        settings['log'].setdefault('logDirectory', f'{CWD}/log')
+        settings['log'].setdefault('isLogStacktrace', False)
+        settings['log'].setdefault('logDatetimeFormat', '%y-%m-%d-%H-%M-%S')
+        settings.setdefault('main', {})
+        settings['main'].setdefault('ignoreError', True)
+        settings['main'].setdefault('isDebugMode', False)
+        settings['main'].setdefault('isShowLogOutput', False)
+        return settings
+
+
 def parse_args():
     args = sys.argv
-    args.pop(0)
-    if (len(args) == 0):
+    if (len(args) == 1):
         return {'args': {
-            'is_debug': False,
-            'is_verbose': False,
-            'is_goodmorning': False,
-            'is_goodnight': False,
+            'isDebugMode': False,
+            'isShowLogOutput': False,
+            'isGoodmorning': False,
+            'isGoodnight': False,
         }}
     parser = argparse.ArgumentParser(
         prog='botcore.py',
@@ -202,21 +205,21 @@ def parse_args():
     if (arg.good_morning == True and arg.good_night == True):
         log_local(Result.Caution, '-m and -n switch cannot use at same time')
         return {'args': {
-            'is_debug': arg.debug,
-            'is_verbose': arg.verbose,
-            'is_goodmorning': False,
-            'is_goodnight': False,
+            'isDebugMode': arg.debug,
+            'isShowLogOutput': arg.verbose,
+            'isGoodmorning': False,
+            'isGoodnight': False,
         }}
     return {'args': {
-        'is_debug': arg.debug,
-        'is_verbose': arg.verbose,
-        'is_goodmorning': arg.good_morning,
-        'is_goodnight': arg.good_night,
+        'isDebugMode': arg.debug,
+        'isShowLogOutput': arg.verbose,
+        'isGoodmorning': arg.good_morning,
+        'isGoodnight': arg.good_night,
     }}
 
 
 CWD = os.getcwd()
-VERSION = f'1.2.909.101'
+VERSION = f'1.2.910.1717'
 KEY_FILE = f'{CWD}/keys.json'
 TWEETS_FILE = f'{CWD}/tweets.json'
 SETTINGS_FILE = f'{CWD}/settings.json'
@@ -225,4 +228,4 @@ LOG_FILE = pick_log_file()
 
 if __name__ == '__main__':
     tweet = select_proverb()
-    poston_twitter(TweetMode.Text, str(tweet))
+    poston_twitter(TweetMode.Text, tweet)

@@ -1,6 +1,8 @@
 {
     "main": {
-        "ignoreError": true
+        "ignoreError": true,
+        "isShowLogOutput": true,
+        "isDebugMode": true
     },
     "log": {
         "maxLogSize": 512000,
