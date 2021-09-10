@@ -368,7 +368,57 @@
 				: 'default'
 		});
 	</script>
-	<h1 id="leninbotcore">LeninBotCore</h1>
+	<h1 id="leninbotcore-ver-129101717">LeninBotCore Ver. 1.2.910,1717</h1>
+	<h2 id="twitter-bot-using-twitter-api-%E2%86%92-follow-leninbot1917">Twitter Bot using Twitter API → <a
+			href="https://twitter.com/Lenin_Bot_1917?ref_src=twsrc%5Etfw">Follow @Lenin_Bot_1917</a></h2>
+	<hr>
+	<h2 id="%E5%A4%89%E6%9B%B4%E3%83%AD%E3%82%B0">変更ログ</h2>
+	<ul>
+		<li>2021/9/5 初期版作成</li>
+		<li>2021/9/6
+			<ul>
+				<li>Bot開始</li>
+				<li>オブジェクト指向的構文から変更</li>
+				<li>関数名、変数名の変更</li>
+				<li>デバッグモード、おはツイ、おやツイモード追加</li>
+			</ul>
+		</li>
+		<li>2021/9/7
+			<ul>
+				<li>ログの状態の出力を詳細化</li>
+				<li>ツイートデータベースをcsvからjsonの配列に変更</li>
+				<li>設定ファイルとプログラムを追加</li>
+			</ul>
+		</li>
+		<li>2021/9/8
+			<ul>
+				<li>ログメッセージのスペルミスを修正</li>
+				<li>バージョン確認、ヘルプ表示の引数を追加</li>
+			</ul>
+		</li>
+		<li>2021/9/10
+			<ul>
+				<li>settings.jsonにデバッグモード、ログ出力確認モードのキー追加</li>
+				<li>ログ出力にスタックトレースを追加する機能を追加</li>
+				<li>ログ出力の日付、時刻表示を変更するキーを追加</li>
+				<li>ログ出力の場所を変更するキーを追加</li>
+			</ul>
+		</li>
+	</ul>
+	<hr>
+	<p>動作に必要なファイルやディレクトリなど</p>
+	<ul>
+		<li>botcore.py</li>
+		<li>logmgr.py</li>
+		<li>keys.json</li>
+		<li>settings.json</li>
+		<li>tweets.json
+			<ul>
+				<li>(dir) log</li>
+			</ul>
+		</li>
+	</ul>
+	<hr>
 	<h3 id="settingsjson">settings.json</h3>
 	<table>
 		<thead>
@@ -460,11 +510,13 @@
 			</tr>
 		</tbody>
 	</table>
-	<h3 id="constants">constants</h3>
+	<h3 id="tweetsjson">tweets.json</h3>
+	<p>適宜変更</p>
+	<p>constants</p>
 	<table>
 		<thead>
 			<tr>
-				<th>特殊文字</th>
+				<th>定数名</th>
 				<th></th>
 			</tr>
 		</thead>
