@@ -5,7 +5,7 @@
         "isDebugMode": true
     },
     "log": {
-        "maxLogSize": 512000,
-        "isLogStacktrace": false
+        "maxLogSize": 1024,
+        "isLogStacktrace": true
     }
 }

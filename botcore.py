@@ -144,14 +144,12 @@ def log_local(result: Result, message, excep_obj=None):
         if (os.path.exists(log_dir) == False):
             os.mkdir(log_dir)
         with open(log_file, 'w') as f:
-            print(log_message, file=f, end='')
-            if (settings['args']['isShowLogOutput'] | settings['main']['isShowLogOutput'] == True):
-                print(log_message, end='')
-    else:
-        with open(log_file, mode='a') as f:
-            print(log_message, file=f, end='')
-            if (settings['args']['isShowLogOutput'] | settings['main']['isShowLogOutput'] == True):
-                print(log_message, end='')
+            print('', file=f, end='')
+
+    with open(log_file, mode='a') as f:
+        print(log_message, file=f, end='')
+        if (settings['args']['isShowLogOutput'] | settings['main']['isShowLogOutput'] == True):
+            print(log_message, end='')
 
     if (result == Result.Error and settings['main']['ignoreError'] == False):
         raise (excep_obj)
