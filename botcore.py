@@ -115,7 +115,7 @@ def pick_log_file():
 
 def create_log_message(result: Result, message, excep_obj=None):
     settings = SETTINGS
-    dtformat = settings['log']['logDatetimeFormat']
+    dtformat = '%y-%m-%d-%H-%M-%S'
     if (result == Result.Error):
         if(excep_obj == None):
             raise ValueError('Exception object is none.')
@@ -166,7 +166,6 @@ def get_settings():
         settings['log'].setdefault('maxLogSize', 51200)  # 500KB
         settings['log'].setdefault('logDirectory', f'{CWD}/log')
         settings['log'].setdefault('isLogStacktrace', False)
-        settings['log'].setdefault('logDatetimeFormat', '%y-%m-%d-%H-%M-%S')
         settings.setdefault('main', {})
         settings['main'].setdefault('ignoreError', True)
         settings['main'].setdefault('isDebugMode', False)
@@ -176,13 +175,15 @@ def get_settings():
 
 def parse_args():
     args = sys.argv
+    arg_values = {}
+    arg_values.setdefault('args', {})
+    arg_values['args'].setdefault('isDebugMode', False)
+    arg_values['args'].setdefault('isShowLogOutput', False)
+    arg_values['args'].setdefault('isGoodmorning', False)
+    arg_values['args'].setdefault('isGoodnight', False)
     if (len(args) == 1):
-        return {'args': {
-            'isDebugMode': False,
-            'isShowLogOutput': False,
-            'isGoodmorning': False,
-            'isGoodnight': False,
-        }}
+        return arg_values
+    args.pop(0)
     parser = argparse.ArgumentParser(
         prog='botcore.py',
         usage='python3.9 botcore.py [-d|--debug] [settings...]',
@@ -196,23 +197,22 @@ def parse_args():
     parser.add_argument('-n', '--good_night', action='store_true')
     parser.add_argument('-?', '--help', action='help')
     arg = parser.parse_args(args)
+
     if (arg.version == True):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
+
     if (arg.good_morning == True and arg.good_night == True):
-        log_local(Result.Caution, '-m and -n switch cannot use at same time')
-        return {'args': {
-            'isDebugMode': arg.debug,
-            'isShowLogOutput': arg.verbose,
-            'isGoodmorning': False,
-            'isGoodnight': False,
-        }}
-    return {'args': {
-        'isDebugMode': arg.debug,
-        'isShowLogOutput': arg.verbose,
-        'isGoodmorning': arg.good_morning,
-        'isGoodnight': arg.good_night,
-    }}
+        # log_local(Result.Caution, '-m and -n switch cannot use at same time')
+        arg_values['args']['isDebugMode'] = arg.debug
+        arg_values['args']['isShowLogOutput'] = arg.verbose
+        return arg_values
+
+    arg_values['args']['isDebugMode'] = arg.debug
+    arg_values['args']['isShowLogOutput'] = arg.verbose
+    arg_values['args']['isGoodmorning'] = arg.good_morning
+    arg_values['args']['isGoodnight'] = arg.good_night
+    return arg_values
 
 
 CWD = os.path.dirname(__file__)
