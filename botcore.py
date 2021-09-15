@@ -45,17 +45,17 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
                     print(message)
                     print(path)
             else:
-                raise ValueError('Tweet message is empty.')
+                log_local(Result.Caution, 'Tweet message is empty.')
         else:
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
             elif (message != ''):
                 if(mode == TweetMode.Text):
-                    api.update_status(f'{message}')
+                    api.update_status(message)
                 elif (mode == TweetMode.TextAndPicture):
                     api.update_with_media(status=message, filename=path)
             else:
-                raise ValueError('Tweet message is empty.')
+                log_local(Result.Caution, 'Tweet message is empty.')
     except FileNotFoundError as ex:
         log_local(
             Result.Error,
@@ -108,8 +108,8 @@ def select_proverb():
 
 def pick_log_file():
     settings = get_settings()
-    log_size_limit = settings['log']['maxLogSize']
     log_dir = settings['log']['logDirectory']
+    log_size_limit = settings['log']['maxLogSize']
     logs = glob.glob(settings['log']['logDirectory'] + '/*.log')
     if (len(logs) > 0):
         for log in logs:
@@ -176,7 +176,7 @@ def get_settings():
         log_local(Result.Error, f'settings.json does not found in {CWD}.', ex)
     finally:
         settings.setdefault('log', {})
-        settings['log'].setdefault('maxLogSize', 51200)
+        settings['log'].setdefault('maxLogSize', 1024 * 5)
         settings['log'].setdefault('logDirectory', f'{CWD}/log')
         settings['log'].setdefault('isLogStacktrace', False)
         settings.setdefault('main', {})
