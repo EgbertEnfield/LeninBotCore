@@ -8,6 +8,7 @@ import datetime
 import argparse
 import traceback
 from enum import Enum
+from typing import Final
 
 
 class TweetMode(Enum):
@@ -50,7 +51,7 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
             elif (message != ''):
-                if(mode == TweetMode.Text):
+                if (mode == TweetMode.Text):
                     api.update_status(message)
                 elif (mode == TweetMode.TextAndPicture):
                     api.update_with_media(status=message, filename=path)
@@ -223,13 +224,13 @@ def parse_args():
     return arg_values
 
 
-CWD = os.path.dirname(__file__)
-VERSION = '1.2.915.14'
-KEY_FILE = f'{CWD}/keys.json'
-TWEETS_FILE = f'{CWD}/tweets.json'
-SETTINGS_FILE = f'{CWD}/settings.json'
-SETTINGS = parse_args() | get_settings()
-LOG_FILE = pick_log_file()
+CWD: Final[str] = os.path.dirname(__file__)
+VERSION: Final[str] = '1.2.915.14'
+KEY_FILE: Final[str] = f'{CWD}/keys.json'
+TWEETS_FILE: Final[str] = f'{CWD}/tweets.json'
+SETTINGS_FILE: Final[str] = f'{CWD}/settings.json'
+LOG_FILE: Final[str] = pick_log_file()
+SETTINGS: Final[dict] = parse_args() | get_settings()
 
 if __name__ == '__main__':
     tweet = select_proverb()
