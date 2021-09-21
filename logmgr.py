@@ -1,9 +1,9 @@
 import os
 import glob
 import json
-import logging
 import datetime
 from typing import Final
+from logging import getLogger, config
 
 
 def extract_log(path: str, range_: tuple[int, int]):

@@ -10,6 +10,9 @@ import traceback
 from enum import Enum
 from typing import Final
 
+# constants
+VERSION = '1.2.915.14'
+
 
 class TweetMode(Enum):
     Text = 0
@@ -26,8 +29,7 @@ class Result(Enum):
 
 def poston_twitter(mode: TweetMode, message: str, path=''):
     try:
-        settings = SETTINGS
-        with open(KEY_FILE) as raw_json:
+        with open(key_file) as raw_json:
             keys = json.load(raw_json)
         auth = tweepy.OAuthHandler(
             keys['twitter']['apiKey'],
@@ -46,7 +48,7 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
                     print(message)
                     print(path)
             else:
-                log_local(Result.Caution, 'Tweet message is empty.')
+                logger.log_local(Result.Caution, 'Tweet message is empty.')
         else:
             if (mode == TweetMode.Picture):
                 api.update_with_media(status='', filename=path)
@@ -56,27 +58,26 @@ def poston_twitter(mode: TweetMode, message: str, path=''):
                 elif (mode == TweetMode.TextAndPicture):
                     api.update_with_media(status=message, filename=path)
             else:
-                log_local(Result.Caution, 'Tweet message is empty.')
+                logger.log_local(Result.Caution, 'Tweet message is empty.')
     except FileNotFoundError as ex:
-        log_local(
+        logger.log_local(
             Result.Error,
-            f'keys.json does not found in {CWD} or picture does not found.',
+            f'keys.json does not found in {cwd} or picture does not found.',
             ex)
     except Exception as ex:
-        log_local(Result.Error, excep_obj=ex)
+        logger.log_local(Result.Error, excep_obj=ex)
     else:
-        log_local(Result.Success, 'Tweeted successfully.')
+        logger.log_local(Result.Success, 'Tweeted successfully.')
 
 
 def select_proverb():
     try:
-        settings = SETTINGS
         if (settings['args']['isGoodmorning']):
             return 'Доброе утро'
         elif (settings['args']['isGoodnight']):
             return ''
         else:
-            with open(TWEETS_FILE, 'r', encoding='utf-8') as raw_json:
+            with open(tweets_file, 'r', encoding='utf-8') as raw_json:
                 proverbs = json.load(raw_json)
                 selected = []
                 if (proverbs['russian']['isEnable']):
@@ -85,100 +86,116 @@ def select_proverb():
                         r = random.randint(0, len(russian) - 1)
                         selected.append(russian[r])
                     else:
-                        log_local(Result.Caution, 'proverbs list is empty')
+                        logger.log_local(
+                            Result.Caution, 'proverbs list is empty')
                 if (proverbs['english']['isEnable']):
                     if (len(proverbs['english']['proverbs']) != 0):
                         english = proverbs['english']['proverbs']
                         e = random.randint(0, len(english) - 1)
                         selected.append(english[e])
                     else:
-                        log_local(Result.Caution, 'proverbs list is empty')
+                        logger.log_local(
+                            Result.Caution, 'proverbs list is empty')
                 if (proverbs['japanese']['isEnable']):
                     if (len(proverbs['japanese']['proverbs']) != 0):
                         japanese = proverbs['japanese']['proverbs']
                         j = random.randint(0, len(japanese) - 1)
                         selected.append(japanese[j])
                     else:
-                        log_local(Result.Caution, 'proverbs list is empty')
+                        logger.log_local(
+                            Result.Caution, 'proverbs list is empty')
                 s = random.randint(0, len(selected) - 1)
                 return selected[s]
     except Exception as ex:
-        log_local(Result.Error, excep_obj=ex)
+        logger.log_local(Result.Error, excep_obj=ex)
         return ''
 
 
-def pick_log_file():
-    settings = get_settings()
-    log_dir = settings['log']['logDirectory']
-    log_size_limit = settings['log']['maxLogSize']
-    logs = glob.glob(settings['log']['logDirectory'] + '/*.log')
-    if (len(logs) > 0):
-        for log in logs:
-            if (os.path.getsize(log) <= log_size_limit):
-                return log
+class Logger:
+    _log_file = ''
+    _log_dir = ''
+    _max_log_size = 0
+    _is_show_log = False
+    _is_ignore_error = False
+    _is_log_stacktrace = False
 
-    return f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
+    def __init__(self):
+        self._log_file: Final[str] = self._pick_log_file()
+        self._log_dir: Final[str] = settings['log']['logDirectory']
+        self._max_log_size: Final[int] = settings['log']['maxLogSize']
+        self._is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
+        self._is_ignore_error: Final[bool] = settings['main']['ignoreError']
+        self._is_log_stacktrace: Final[bool] = settings['main']['isLogStacktrace']
+        return
 
+    def _pick_log_file(self):
+        logs = glob.glob(self._log_dir + '/*.log')
+        if (len(logs) > 0):
+            for log in logs:
+                if (os.path.getsize(log) <= self._max_log_size):
+                    return log
 
-def log_local(
-        result: Result,
-        message: str = '',
-        excep_obj: Exception = None):
-    log_file = LOG_FILE
-    settings = SETTINGS
-    log_dir = str(settings['log']['logDirectory'])
-    log_message = create_log_message(result, message, excep_obj)
-    if not os.path.exists(log_file):
-        if not os.path.exists(log_dir):
-            os.mkdir(log_dir)
-        with open(log_file, 'w') as f:
-            print('', file=f, end='')
+        return f'{self._log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
 
-    with open(log_file, mode='a') as f:
-        print(log_message, file=f, end='')
-        if (settings['args']['isShowLogOutput'] |
-                settings['main']['isShowLogOutput']):
-            print(log_message, end='')
+    def log_local(
+            self,
+            result: Result,
+            message: str = '',
+            excep_obj: Exception = None):
+        log_message = self._create_log_message(result, message, excep_obj)
+        if not os.path.exists(self._log_file):
+            if not os.path.exists(self._log_dir):
+                os.mkdir(self._log_dir)
+            with open(self._log_file, 'w') as f:
+                print('', file=f, end='')
 
-    if (result == Result.Error and settings['main']['ignoreError'] is False):
-        raise (Exception(excep_obj))
+        with open(self._log_file, mode='a') as f:
+            print(log_message, file=f, end='')
+            if (self._is_show_log):
+                print(log_message, end='')  # console output
 
+        if (result == Result.Error and self._is_ignore_error is False):
+            raise (Exception(excep_obj))
 
-def create_log_message(
-        result: Result,
-        message: str = '',
-        excep_obj: Exception = None):
-    settings = SETTINGS
-    dtformat = '%y-%m-%d-%H-%M-%S'
-    if (result == Result.Error):
-        if(excep_obj is None):
-            raise ValueError('Exception object is none.')
-        else:
-            stacktrace = ''
-            if (settings['log']['isLogStacktrace']):
-                stacktrace = traceback.format_exc()
-            if (message == ''):
-                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{excep_obj}\n{stacktrace}'
+    def _create_log_message(
+            self,
+            result: Result,
+            message: str = '',
+            excep_obj: Exception = None):
+        dtformat = '%y/%m/%d %H:%M:%S'
+        if (result == Result.Error):
+            if(excep_obj is None):
+                raise ValueError('Exception object is none.')
             else:
-                return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{message}\n{stacktrace}'
-    else:
-        if (message == ''):
-            raise ValueError('Log message is empty.')
+                stacktrace = ''
+                if (self._is_log_stacktrace):
+                    stacktrace = traceback.format_exc()
+                if (message == ''):
+                    return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{excep_obj}\n{stacktrace}'
+                else:
+                    return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{message}\n{stacktrace}'
         else:
-            return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}\n'
+            if (message == ''):
+                raise ValueError('Log message is empty.')
+            else:
+                return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}\n'
+# end log brock
 
 
 def get_settings():
     settings = {}
     try:
-        with open(SETTINGS_FILE, 'r') as raw_json:
+        with open(settings_file, 'r') as raw_json:
             settings = json.load(raw_json)
     except Exception as ex:
-        log_local(Result.Error, f'settings.json does not found in {CWD}.', ex)
+        logger.log_local(
+            Result.Error,
+            f'settings.json does not found in {cwd}.',
+            ex)
     finally:
         settings.setdefault('log', {})
         settings['log'].setdefault('maxLogSize', 1024 * 5)
-        settings['log'].setdefault('logDirectory', f'{CWD}/log')
+        settings['log'].setdefault('logDirectory', f'{cwd}/log')
         settings['log'].setdefault('isLogStacktrace', False)
         settings.setdefault('main', {})
         settings['main'].setdefault('ignoreError', True)
@@ -224,13 +241,14 @@ def parse_args():
     return arg_values
 
 
-CWD: Final[str] = os.path.dirname(__file__)
-VERSION: Final[str] = '1.2.915.14'
-KEY_FILE: Final[str] = f'{CWD}/keys.json'
-TWEETS_FILE: Final[str] = f'{CWD}/tweets.json'
-SETTINGS_FILE: Final[str] = f'{CWD}/settings.json'
-LOG_FILE: Final[str] = pick_log_file()
-SETTINGS: Final[dict] = parse_args() | get_settings()
+# readonly variables
+cwd: Final[str] = os.path.dirname(__file__)
+key_file: Final[str] = f'{cwd}/keys.json'
+tweets_file: Final[str] = f'{cwd}/tweets.json'
+settings_file: Final[str] = f'{cwd}/settings.json'
+settings: Final[dict] = parse_args() | get_settings()
+
+logger: Final[Logger] = Logger()
 
 if __name__ == '__main__':
     tweet = select_proverb()
