@@ -26,48 +26,48 @@ class Result(Enum):
     Info = '[info]   '
     Success = '[success]'
 
-
-def poston_twitter(mode: TweetMode, message: str, path=''):
-    try:
-        with open(key_file) as raw_json:
-            keys = json.load(raw_json)
-        auth = tweepy.OAuthHandler(
-            keys['twitter']['apiKey'],
-            keys['twitter']['apiSecret'])
-        auth.set_access_token(
-            keys['twitter']['token'],
-            keys['twitter']['tokenSecret'])
-        api = tweepy.API(auth)
-        if (settings['args']['isDebugMode'] | settings['main']['isDebugMode']):
-            if (mode == TweetMode.Picture and os.path.exists(path)):
-                print(path)
-            elif (message != ''):
-                if(mode == TweetMode.Text):
-                    print(message)
-                elif (mode == TweetMode.TextAndPicture and os.path.exists(path)):
-                    print(message)
+class Twitter:
+    def poston_twitter(mode: TweetMode, message: str, path=''):
+        try:
+            with open(key_file) as raw_json:
+                keys = json.load(raw_json)
+            auth = tweepy.OAuthHandler(
+                keys['twitter']['apiKey'],
+                keys['twitter']['apiSecret'])
+            auth.set_access_token(
+                keys['twitter']['token'],
+                keys['twitter']['tokenSecret'])
+            api = tweepy.API(auth)
+            if (settings['args']['isDebugMode'] | settings['main']['isDebugMode']):
+                if (mode == TweetMode.Picture and os.path.exists(path)):
                     print(path)
+                elif (message != ''):
+                    if(mode == TweetMode.Text):
+                        print(message)
+                    elif (mode == TweetMode.TextAndPicture and os.path.exists(path)):
+                        print(message)
+                        print(path)
+                else:
+                    logger.log_local(Result.Caution, 'Tweet message is empty.')
             else:
-                logger.log_local(Result.Caution, 'Tweet message is empty.')
+                if (mode == TweetMode.Picture):
+                    api.update_with_media(status='', filename=path)
+                elif (message != ''):
+                    if (mode == TweetMode.Text):
+                        api.update_status(message)
+                    elif (mode == TweetMode.TextAndPicture):
+                        api.update_with_media(status=message, filename=path)
+                else:
+                    logger.log_local(Result.Caution, 'Tweet message is empty.')
+        except FileNotFoundError as ex:
+            logger.log_local(
+                Result.Error,
+                f'keys.json does not found in {cwd} or picture does not found.',
+                ex)
+        except Exception as ex:
+            logger.log_local(Result.Error, excep_obj=ex)
         else:
-            if (mode == TweetMode.Picture):
-                api.update_with_media(status='', filename=path)
-            elif (message != ''):
-                if (mode == TweetMode.Text):
-                    api.update_status(message)
-                elif (mode == TweetMode.TextAndPicture):
-                    api.update_with_media(status=message, filename=path)
-            else:
-                logger.log_local(Result.Caution, 'Tweet message is empty.')
-    except FileNotFoundError as ex:
-        logger.log_local(
-            Result.Error,
-            f'keys.json does not found in {cwd} or picture does not found.',
-            ex)
-    except Exception as ex:
-        logger.log_local(Result.Error, excep_obj=ex)
-    else:
-        logger.log_local(Result.Success, 'Tweeted successfully.')
+            logger.log_local(Result.Success, 'Tweeted successfully.')
 
 
 def select_proverb():
@@ -181,27 +181,27 @@ class Logger:
                 return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}\n'
 # end log brock
 
-
-def get_settings():
-    settings = {}
-    try:
-        with open(settings_file, 'r') as raw_json:
-            settings = json.load(raw_json)
-    except Exception as ex:
-        logger.log_local(
-            Result.Error,
-            f'settings.json does not found in {cwd}.',
-            ex)
-    finally:
-        settings.setdefault('log', {})
-        settings['log'].setdefault('maxLogSize', 1024 * 5)
-        settings['log'].setdefault('logDirectory', f'{cwd}/log')
-        settings['log'].setdefault('isLogStacktrace', False)
-        settings.setdefault('main', {})
-        settings['main'].setdefault('ignoreError', True)
-        settings['main'].setdefault('isDebugMode', False)
-        settings['main'].setdefault('isShowLogOutput', False)
-        return settings
+class JsonConverter:
+    def get_settings():
+        settings = {}
+        try:
+            with open(settings_file, 'r') as raw_json:
+                settings = json.load(raw_json)
+        except Exception as ex:
+            logger.log_local(
+                Result.Error,
+                f'settings.json does not found in {cwd}.',
+                ex)
+        finally:
+            settings.setdefault('log', {})
+            settings['log'].setdefault('maxLogSize', 1024 * 5)
+            settings['log'].setdefault('logDirectory', f'{cwd}/log')
+            settings['log'].setdefault('isLogStacktrace', False)
+            settings.setdefault('main', {})
+            settings['main'].setdefault('ignoreError', True)
+            settings['main'].setdefault('isDebugMode', False)
+            settings['main'].setdefault('isShowLogOutput', False)
+            return settings
 
 
 def parse_args():
@@ -242,14 +242,16 @@ def parse_args():
 
 
 # readonly variables
+logger: Final[Logger] = Logger()
+twitter: Final[Twitter] = Twitter()
+converter: Final[JsonConverter] = JsonConverter()
+
 cwd: Final[str] = os.path.dirname(__file__)
 key_file: Final[str] = f'{cwd}/keys.json'
 tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
-settings: Final[dict] = parse_args() | get_settings()
-
-logger: Final[Logger] = Logger()
+settings: Final[dict] = parse_args() | converter.get_settings()
 
 if __name__ == '__main__':
     tweet = select_proverb()
-    poston_twitter(TweetMode.Text, tweet)
+    twitter.poston_twitter(TweetMode.Text, tweet)
