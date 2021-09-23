@@ -7,8 +7,10 @@ import random
 import datetime
 import argparse
 import traceback
+import logging
 from enum import Enum
 from typing import Final
+from logging.handlers import RotatingFileHandler
 
 # constants
 VERSION = '1.2.915.14'
@@ -48,7 +50,7 @@ class Twitter:
                         print(message)
                         print(path)
                 else:
-                    logger.log_local(Result.Caution, 'Tweet message is empty.')
+                    logger.warning('Tweet message is empty.')
             else:
                 if (mode == TweetMode.Picture):
                     api.update_with_media(status='', filename=path)
@@ -58,16 +60,13 @@ class Twitter:
                     elif (mode == TweetMode.TextAndPicture):
                         api.update_with_media(status=message, filename=path)
                 else:
-                    logger.log_local(Result.Caution, 'Tweet message is empty.')
+                    logger.warning('Tweet message is empty.')
         except FileNotFoundError as ex:
-            logger.log_local(
-                Result.Error,
-                f'keys.json does not found in {cwd} or picture does not found.',
-                ex)
+            logger.exception(f'keys.json does not found in {cwd} or picture does not found.')
         except Exception as ex:
-            logger.log_local(Result.Error, excep_obj=ex)
+            logger.exception('Ignoring exception in poston_twitter')
         else:
-            logger.log_local(Result.Success, 'Tweeted successfully.')
+            logger.info('Tweeted successfully.')
 
 
 def select_proverb():
@@ -86,100 +85,64 @@ def select_proverb():
                         r = random.randint(0, len(russian) - 1)
                         selected.append(russian[r])
                     else:
-                        logger.log_local(
-                            Result.Caution, 'proverbs list is empty')
+                        logger.warning('proverbs list is empty')
                 if (proverbs['english']['isEnable']):
                     if (len(proverbs['english']['proverbs']) != 0):
                         english = proverbs['english']['proverbs']
                         e = random.randint(0, len(english) - 1)
                         selected.append(english[e])
                     else:
-                        logger.log_local(
-                            Result.Caution, 'proverbs list is empty')
+                        logger.warning('proverbs list is empty')
                 if (proverbs['japanese']['isEnable']):
                     if (len(proverbs['japanese']['proverbs']) != 0):
                         japanese = proverbs['japanese']['proverbs']
                         j = random.randint(0, len(japanese) - 1)
                         selected.append(japanese[j])
                     else:
-                        logger.log_local(
-                            Result.Caution, 'proverbs list is empty')
+                        logger.warning('proverbs list is empty')
                 s = random.randint(0, len(selected) - 1)
                 return selected[s]
     except Exception as ex:
-        logger.log_local(Result.Error, excep_obj=ex)
+        logger.exception('Ignoring exception in select_proverb')
         return ''
 
 
-class Logger:
-    _log_file = ''
-    _log_dir = ''
-    _max_log_size = 0
-    _is_show_log = False
-    _is_ignore_error = False
-    _is_log_stacktrace = False
+def create_logger():
+    log_dir: Final[str] = settings['log']['logDirectory']
+    max_log_size: Final[int] = settings['log']['maxLogSize']
+    is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
 
-    def __init__(self):
-        self._log_file: Final[str] = self._pick_log_file()
-        self._log_dir: Final[str] = settings['log']['logDirectory']
-        self._max_log_size: Final[int] = settings['log']['maxLogSize']
-        self._is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
-        self._is_ignore_error: Final[bool] = settings['main']['ignoreError']
-        self._is_log_stacktrace: Final[bool] = settings['main']['isLogStacktrace']
-        return
+    for log in glob.glob(log_dir + '/*.log'):
+        if (os.path.getsize(log) <= max_log_size):
+            log_file = log
+            break
+    else:
+        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
 
-    def _pick_log_file(self):
-        logs = glob.glob(self._log_dir + '/*.log')
-        if (len(logs) > 0):
-            for log in logs:
-                if (os.path.getsize(log) <= self._max_log_size):
-                    return log
+    root = logging.getLogger()
 
-        return f'{self._log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
+    format = logging.Formatter(
+        '{asctime} {f"[{levelname}]": <10} {message}',
+        style='{',
+        datefmt='%y/%m/%d %H:%M:%S'
+    )
 
-    def log_local(
-            self,
-            result: Result,
-            message: str = '',
-            excep_obj: Exception = None):
-        log_message = self._create_log_message(result, message, excep_obj)
-        if not os.path.exists(self._log_file):
-            if not os.path.exists(self._log_dir):
-                os.mkdir(self._log_dir)
-            with open(self._log_file, 'w') as f:
-                print('', file=f, end='')
+    if is_show_log:
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(format)
+        stream_handler.setLevel(logging.NOTSET)
 
-        with open(self._log_file, mode='a') as f:
-            print(log_message, file=f, end='')
-            if (self._is_show_log):
-                print(log_message, end='')  # console output
+    file_handler = RotatingFileHandler(
+        filename=log_file,
+        encoding='utf8',
+        mode='w',
+        maxBytes=max_log_size,
+        backupCount=1000
+    )
+    file_handler.setFormatter(format)
+    file_handler.setLevel(logging.NOTSET)
 
-        if (result == Result.Error and self._is_ignore_error is False):
-            raise (Exception(excep_obj))
-
-    def _create_log_message(
-            self,
-            result: Result,
-            message: str = '',
-            excep_obj: Exception = None):
-        dtformat = '%y/%m/%d %H:%M:%S'
-        if (result == Result.Error):
-            if(excep_obj is None):
-                raise ValueError('Exception object is none.')
-            else:
-                stacktrace = ''
-                if (self._is_log_stacktrace):
-                    stacktrace = traceback.format_exc()
-                if (message == ''):
-                    return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{excep_obj}\n{stacktrace}'
-                else:
-                    return f'{datetime.datetime.now().strftime(str(dtformat))}  {Result.Error.value} {type(excep_obj)}{message}\n{stacktrace}'
-        else:
-            if (message == ''):
-                raise ValueError('Log message is empty.')
-            else:
-                return f'{datetime.datetime.now().strftime(str(dtformat))}  {result.value} {message}\n'
-# end log brock
+    return logging.getLogger(__name__)
 
 class JsonConverter:
     def get_settings():
@@ -188,10 +151,7 @@ class JsonConverter:
             with open(settings_file, 'r') as raw_json:
                 settings = json.load(raw_json)
         except Exception as ex:
-            logger.log_local(
-                Result.Error,
-                f'settings.json does not found in {cwd}.',
-                ex)
+            logger.exception(f'settings.json does not found in {cwd}.')
         finally:
             settings.setdefault('log', {})
             settings['log'].setdefault('maxLogSize', 1024 * 5)
@@ -242,7 +202,7 @@ def parse_args():
 
 
 # readonly variables
-logger: Final[Logger] = Logger()
+logger: Final[logging.Logger]= create_logger()
 twitter: Final[Twitter] = Twitter()
 converter: Final[JsonConverter] = JsonConverter()
 
