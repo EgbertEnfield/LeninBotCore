@@ -10,6 +10,8 @@ import traceback
 import logging
 from enum import Enum
 from typing import Final
+from logging import NOTSET, FileHandler
+from logging import getLogger, StreamHandler, Formatter
 from logging.handlers import RotatingFileHandler
 
 # constants
@@ -29,7 +31,8 @@ class Result(Enum):
     Success = '[success]'
 
 class Twitter:
-    def poston_twitter(mode: TweetMode, message: str, path=''):
+    @staticmethod
+    def poston_twitter(mode: TweetMode, message: str, path: str=''):
         try:
             with open(key_file) as raw_json:
                 keys = json.load(raw_json)
@@ -44,7 +47,7 @@ class Twitter:
                 if (mode == TweetMode.Picture and os.path.exists(path)):
                     print(path)
                 elif (message != ''):
-                    if(mode == TweetMode.Text):
+                    if (mode == TweetMode.Text):
                         print(message)
                     elif (mode == TweetMode.TextAndPicture and os.path.exists(path)):
                         print(message)
@@ -59,6 +62,8 @@ class Twitter:
                         api.update_status(message)
                     elif (mode == TweetMode.TextAndPicture):
                         api.update_with_media(status=message, filename=path)
+                    else:
+                        logger.warning('Tweet mode is not specified')
                 else:
                     logger.warning('Tweet message is empty.')
         except FileNotFoundError as ex:
@@ -112,25 +117,31 @@ def create_logger():
     max_log_size: Final[int] = settings['log']['maxLogSize']
     is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
 
+    if not (os.path.exists(log_dir)):
+        os.mkdir(log_dir)
+
     for log in glob.glob(log_dir + '/*.log'):
         if (os.path.getsize(log) <= max_log_size):
             log_file = log
             break
     else:
-        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
+        log_file = f'{log_dir}/{datetime.datetime.now():"%y%m%d%H%M%S"}.log'
+        with open(log_file, 'w') as f:
+            f.write('')
 
     root = logging.getLogger()
 
     format = logging.Formatter(
-        '{asctime} {f"[{levelname}]": <10} {message}',
+        # '{asctime} {f"[{levelname}]": <10} {message}',
+        '{asctime} {levelname}: {message}',
         style='{',
         datefmt='%y/%m/%d %H:%M:%S'
     )
 
-    if is_show_log:
+    if (is_show_log):
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(format)
-        stream_handler.setLevel(logging.NOTSET)
+        stream_handler.setLevel(logging.DEBUG)
 
     file_handler = RotatingFileHandler(
         filename=log_file,
@@ -140,11 +151,17 @@ def create_logger():
         backupCount=1000
     )
     file_handler.setFormatter(format)
-    file_handler.setLevel(logging.NOTSET)
+    file_handler.setLevel(logging.DEBUG)
+
+    logging.basicConfig(
+        level=NOTSET,
+        handlers=[stream_handler, file_handler]
+    )
 
     return logging.getLogger(__name__)
 
 class JsonConverter:
+    @staticmethod
     def get_settings():
         settings = {}
         try:
@@ -190,28 +207,29 @@ def parse_args():
     if (arg.version):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
-    if (arg.good_morning and arg.good_night):
+    elif (arg.good_morning and arg.good_night):
         arg_values['args']['isDebugMode'] = arg.debug
         arg_values['args']['isShowLogOutput'] = arg.verbose
         return arg_values
-    arg_values['args']['isDebugMode'] = arg.debug
-    arg_values['args']['isShowLogOutput'] = arg.verbose
-    arg_values['args']['isGoodmorning'] = arg.good_morning
-    arg_values['args']['isGoodnight'] = arg.good_night
-    return arg_values
+    else:
+        arg_values['args']['isDebugMode'] = arg.debug
+        arg_values['args']['isShowLogOutput'] = arg.verbose
+        arg_values['args']['isGoodmorning'] = arg.good_morning
+        arg_values['args']['isGoodnight'] = arg.good_night
+        return arg_values
 
 
 # readonly variables
-logger: Final[logging.Logger]= create_logger()
-twitter: Final[Twitter] = Twitter()
-converter: Final[JsonConverter] = JsonConverter()
-
 cwd: Final[str] = os.path.dirname(__file__)
 key_file: Final[str] = f'{cwd}/keys.json'
 tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
-settings: Final[dict] = parse_args() | converter.get_settings()
+settings: Final[dict] = parse_args() | JsonConverter.get_settings()
+
+logger: Final[logging.Logger]= create_logger()
+twitter: Final[Twitter] = Twitter()
+converter: Final[JsonConverter] = JsonConverter()
 
 if __name__ == '__main__':
     tweet = select_proverb()
-    twitter.poston_twitter(TweetMode.Text, tweet)
+    Twitter.poston_twitter(TweetMode.Text, tweet)
