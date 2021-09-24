@@ -1,4 +1,5 @@
 import os
+import re
 import sys
 import json
 import glob
@@ -6,10 +7,11 @@ import tweepy
 import random
 import datetime
 import argparse
-import traceback
+import unicodedata
 import logging
 from enum import Enum
 from typing import Final
+from decimal import Decimal, ROUND_HALF_UP
 from logging.handlers import RotatingFileHandler
 
 # constants
@@ -28,9 +30,11 @@ class Result(Enum):
     Info = '[info]   '
     Success = '[success]'
 
+
 class Twitter:
-    @staticmethod
-    def poston_twitter(mode: TweetMode, message: str, path: str=''):
+    _api: Final[tweepy.API] = tweepy.API
+
+    def __init__(self):
         try:
             with open(key_file) as raw_json:
                 keys = json.load(raw_json)
@@ -40,8 +44,49 @@ class Twitter:
             auth.set_access_token(
                 keys['twitter']['token'],
                 keys['twitter']['tokenSecret'])
-            api = tweepy.API(auth)
-            if (settings['args']['isDebugMode'] | settings['main']['isDebugMode']):
+            self._api = tweepy.API(auth)
+        except FileNotFoundError:
+            logger.exception(f'keys.json did not find in {cwd}')
+        except KeyError:
+            logger.exception('Several keys are wrong or missing')
+        except Exception:
+            logger.exception('Ignoring exception in __init__')
+
+    def poston_twitter(self, mode: TweetMode, message: str, path: str = ''):
+        try:
+            _is_fatal = False
+            _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
+            if (_is_debug is False):
+                if (mode == TweetMode.Picture):
+                    self._api.update_with_media(status='', filename=path)
+                elif (message != ''):
+                    if (mode == TweetMode.Text):
+                        self._api.update_status(message)
+                    elif (mode == TweetMode.TextAndPicture):
+                        self._api.update_with_media(
+                            status=message, filename=path)
+                    else:
+                        _is_fatal = True
+                        logger.warning('Tweet mode is not specified')
+                else:
+                    _is_fatal = True
+                    logger.warning('Tweet message is empty')
+            else:
+                _is_fatal = True
+                logger.error('Cannot use poston_twitter with debug-mode is true')
+        except FileNotFoundError:
+            logger.exception(f'Picture file did not find in {cwd}')
+        except Exception:
+            logger.exception('Ignoring exception in poston_twitter')
+        else:
+            if (_is_fatal is False):
+                logger.info('Tweeted successfully.')
+            else:
+                logger.info('Finished with error')
+
+    def tweet_debug(self, mode: TweetMode, message: str, path: str = ''):
+        try:
+            if (self._is_tweetable(message)):
                 if (mode == TweetMode.Picture and os.path.exists(path)):
                     print(path)
                 elif (message != ''):
@@ -51,25 +96,38 @@ class Twitter:
                         print(message)
                         print(path)
                 else:
-                    logger.warning('Tweet message is empty.')
+                    logger.warning('Tweet message is empty')
             else:
-                if (mode == TweetMode.Picture):
-                    api.update_with_media(status='', filename=path)
-                elif (message != ''):
-                    if (mode == TweetMode.Text):
-                        api.update_status(message)
-                    elif (mode == TweetMode.TextAndPicture):
-                        api.update_with_media(status=message, filename=path)
-                    else:
-                        logger.warning('Tweet mode is not specified')
-                else:
-                    logger.warning('Tweet message is empty.')
-        except FileNotFoundError as ex:
-            logger.exception(f'keys.json does not found in {cwd} or picture does not found.')
-        except Exception as ex:
-            logger.exception('Ignoring exception in poston_twitter')
+                logger.warning('Tweet message is up to 140 chars')
+        except FileNotFoundError:
+            logger.exception(f'Picture file did not find in {cwd}')
+
+    def _is_tweetable(self, message: str):
+        _text_count = 0
+        _url_pattern = 'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
+        _links = re.findall(_url_pattern, message)
+
+        if (message == ''):
+            logger.warning('Tweet message is empty')
+            return False
+
+        for c in message:
+            j = unicodedata.east_asian_width(c)
+            if (j == 'F' or j == 'W' or j == 'H'):
+                _text_count += 1
+            elif (j == 'Na' or j == 'A' or c == '\n'):
+                _text_count += 0.5
+            elif (j == 'N'):
+                logger.warning('Using invalid chars')
+                return False
+
+        if (len(_links) > 0):
+            _text_count += 11.5
+
+        if (Decimal(str(_text_count)).quantize(Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
+            return True
         else:
-            logger.info('Tweeted successfully.')
+            return False
 
 
 def select_proverb():
@@ -105,7 +163,9 @@ def select_proverb():
                         logger.warning('proverbs list is empty')
                 s = random.randint(0, len(selected) - 1)
                 return selected[s]
-    except Exception as ex:
+    except FileNotFoundError:
+        logger.exception(f'proverbs.json did not find in {cwd}')
+    except Exception:
         logger.exception('Ignoring exception in select_proverb')
         return ''
 
@@ -128,8 +188,7 @@ def create_logger():
             f.write('')
 
     format = logging.Formatter(
-        # '{asctime} {f"[{levelname}]": <10} {message}',
-        '{asctime} {levelname}: {message}',
+        '{asctime} [{levelname}]  {message}',
         style='{',
         datefmt='%y/%m/%d %H:%M:%S'
     )
@@ -150,12 +209,12 @@ def create_logger():
     file_handler.setLevel(logging.NOTSET)
 
     _logger = logging.getLogger()
-
     _logger.setLevel(logging.NOTSET)
     _logger.addHandler(file_handler)
     _logger.addHandler(stream_handler)
 
     return _logger
+
 
 class JsonConverter:
     @staticmethod
@@ -164,7 +223,7 @@ class JsonConverter:
         try:
             with open(settings_file, 'r') as raw_json:
                 settings = json.load(raw_json)
-        except Exception as ex:
+        except Exception:
             logger.exception(f'settings.json does not found in {cwd}.')
         finally:
             settings.setdefault('log', {})
@@ -223,10 +282,15 @@ tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
 settings: Final[dict] = parse_args() | JsonConverter.get_settings()
 
-logger: Final[logging.Logger]= create_logger()
+logger: Final[logging.Logger] = create_logger()
 twitter: Final[Twitter] = Twitter()
 converter: Final[JsonConverter] = JsonConverter()
 
 if __name__ == '__main__':
-    tweet = select_proverb()
-    Twitter.poston_twitter(TweetMode.Text, tweet)
+    # tweet = select_proverb()
+    _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
+    tweet = 'huehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehue'
+    if (_is_debug is False):
+        twitter.poston_twitter(TweetMode.Text, tweet)
+    else:
+        twitter.tweet_debug(TweetMode.Text, tweet)
