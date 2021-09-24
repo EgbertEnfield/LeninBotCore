@@ -10,8 +10,6 @@ import traceback
 import logging
 from enum import Enum
 from typing import Final
-from logging import NOTSET, FileHandler
-from logging import getLogger, StreamHandler, Formatter
 from logging.handlers import RotatingFileHandler
 
 # constants
@@ -129,8 +127,6 @@ def create_logger():
         with open(log_file, 'w') as f:
             f.write('')
 
-    root = logging.getLogger()
-
     format = logging.Formatter(
         # '{asctime} {f"[{levelname}]": <10} {message}',
         '{asctime} {levelname}: {message}',
@@ -141,7 +137,7 @@ def create_logger():
     if (is_show_log):
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(format)
-        stream_handler.setLevel(logging.DEBUG)
+        stream_handler.setLevel(logging.NOTSET)
 
     file_handler = RotatingFileHandler(
         filename=log_file,
@@ -151,14 +147,15 @@ def create_logger():
         backupCount=1000
     )
     file_handler.setFormatter(format)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(logging.NOTSET)
 
-    logging.basicConfig(
-        level=NOTSET,
-        handlers=[stream_handler, file_handler]
-    )
+    _logger = logging.getLogger()
 
-    return logging.getLogger(__name__)
+    _logger.setLevel(logging.NOTSET)
+    _logger.addHandler(file_handler)
+    _logger.addHandler(stream_handler)
+
+    return _logger
 
 class JsonConverter:
     @staticmethod
