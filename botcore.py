@@ -103,9 +103,9 @@ class Twitter:
             logger.exception(f'Picture file did not find in {cwd}')
 
     def _is_tweetable(self, message: str):
-        _text_count = 0
-        _url_pattern = 'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
-        _links = re.findall(_url_pattern, message)
+        text_count = 0
+        url_pattern = 'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
+        links = re.findall(url_pattern, message)
 
         if (message == ''):
             logger.warning('Tweet message is empty')
@@ -113,18 +113,21 @@ class Twitter:
 
         for c in message:
             j = unicodedata.east_asian_width(c)
-            if (j == 'F' or j == 'W' or j == 'H'):
-                _text_count += 1
+            if (j == 'F' or j == 'W' or j == 'H' or j == 'N'):
+                text_count += 1
             elif (j == 'Na' or j == 'A' or c == '\n'):
-                _text_count += 0.5
+                text_count += 0.5
             elif (j == 'N'):
                 logger.warning('Using invalid chars')
                 return False
 
-        if (len(_links) > 0):
-            _text_count += 11.5
+        if (len(links) > 0):
+            text_count += 11.5
+            for link in links:
+                for lc in link:
+                    text_count -= 0.5
 
-        if (Decimal(str(_text_count)).quantize(Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
+        if (Decimal(str(text_count)).quantize(Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
             return True
         else:
             return False
@@ -287,9 +290,8 @@ twitter: Final[Twitter] = Twitter()
 converter: Final[JsonConverter] = JsonConverter()
 
 if __name__ == '__main__':
-    # tweet = select_proverb()
+    tweet = select_proverb()
     _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
-    tweet = 'huehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehuehue'
     if (_is_debug is False):
         twitter.poston_twitter(TweetMode.Text, tweet)
     else:
