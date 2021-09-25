@@ -220,8 +220,9 @@ def create_logger():
 
 
 class JsonConverter:
-    @staticmethod
-    def get_settings():
+    
+
+    def get_settings(self):
         settings = {}
         try:
             with open(settings_file, 'r') as raw_json:
@@ -229,27 +230,35 @@ class JsonConverter:
         except Exception:
             logger.exception(f'settings.json does not found in {cwd}.')
         finally:
-            settings.setdefault('log', {})
-            settings['log'].setdefault('maxLogSize', 1024 * 5)
-            settings['log'].setdefault('logDirectory', f'{cwd}/log')
-            settings['log'].setdefault('isLogStacktrace', False)
-            settings.setdefault('main', {})
-            settings['main'].setdefault('ignoreError', True)
-            settings['main'].setdefault('isDebugMode', False)
-            settings['main'].setdefault('isShowLogOutput', False)
+            self.create_settings(settings)
             return settings
+
+    def create_settings(self, dic: dict):
+        dic.setdefault('log', {})
+        dic['log'].setdefault('maxLogSize', 1024 * 5)
+        dic['log'].setdefault('logDirectory', f'{cwd}/log')
+        dic['log'].setdefault('isLogStacktrace', False)
+        dic.setdefault('main', {})
+        dic['main'].setdefault('ignoreError', True)
+        dic['main'].setdefault('isDebugMode', False)
+        dic['main'].setdefault('isShowLogOutput', False)
+        return dic
 
 
 def parse_args():
-    args = sys.argv
     arg_values = {}
     arg_values.setdefault('args', {})
     arg_values['args'].setdefault('isDebugMode', False)
     arg_values['args'].setdefault('isShowLogOutput', False)
     arg_values['args'].setdefault('isGoodmorning', False)
     arg_values['args'].setdefault('isGoodnight', False)
-    if (len(args) == 1):
+
+    args = sys.argv
+    if (len(args) == 0):
+        return {}
+    elif (len(args) == 1):
         return arg_values
+
     args.pop(0)
     parser = argparse.ArgumentParser(
         prog='botcore.py',
@@ -262,7 +271,9 @@ def parse_args():
     parser.add_argument('-m', '--good_morning', action='store_true')
     parser.add_argument('-n', '--good_night', action='store_true')
     parser.add_argument('-?', '--help', action='help')
+
     arg = parser.parse_args(args)
+
     if (arg.version):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
