@@ -219,21 +219,20 @@ def create_logger():
     return _logger
 
 
-class JsonConverter:
-    
+class Settings:
+    def __init__(self) -> None:
+        pass
 
-    def get_settings(self):
-        settings = {}
-        try:
-            with open(settings_file, 'r') as raw_json:
-                settings = json.load(raw_json)
-        except Exception:
-            logger.exception(f'settings.json does not found in {cwd}.')
-        finally:
-            self.create_settings(settings)
-            return settings
+    def get_settings(self, dic: dict = {}):
+        """
+        デフォルト設定またはdicで指定されていない設定を付加して取得
 
-    def create_settings(self, dic: dict):
+        Args:
+            dic (:obj:`dict`, optional): Json形式から変換された辞書
+
+        Returns:
+            dict: 設定データ
+        """
         dic.setdefault('log', {})
         dic['log'].setdefault('maxLogSize', 1024 * 5)
         dic['log'].setdefault('logDirectory', f'{cwd}/log')
@@ -243,6 +242,34 @@ class JsonConverter:
         dic['main'].setdefault('isDebugMode', False)
         dic['main'].setdefault('isShowLogOutput', False)
         return dic
+    
+    def load_settings(self):
+        try:
+            with open(settings_file, 'r') as reader:
+                json_dic = json.load(reader.read())
+        except FileNotFoundError:
+            logger.error(f'settings.json did not find in {cwd}. set default')
+        finally:
+            j_settings = self.get_settings(json_dic)
+            return j_settings
+
+    @staticmethod
+    def init_settings():
+        settings = {
+            'log': {
+                'maxLogSize': 1024 * 5,
+                'logDirectory': f'{cwd}/log',
+                'isLogStacktrace': False
+            },
+            'main': {
+                'ignoreError': True,
+                'isDebugMode': False,
+                'isShowLogOutput': False
+            }
+        }
+        with open(settings_file, 'w') as writer:
+            json_str = json.dumps(settings)
+            writer.write(json_str)
 
 
 def parse_args():
@@ -294,11 +321,11 @@ cwd: Final[str] = os.path.dirname(__file__)
 key_file: Final[str] = f'{cwd}/keys.json'
 tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
-settings: Final[dict] = parse_args() | JsonConverter.get_settings()
+settings: Final[dict] = parse_args() | Settings.load_settings()
 
 logger: Final[logging.Logger] = create_logger()
 twitter: Final[Twitter] = Twitter()
-converter: Final[JsonConverter] = JsonConverter()
+converter: Final[Settings] = Settings()
 
 if __name__ == '__main__':
     tweet = select_proverb()
