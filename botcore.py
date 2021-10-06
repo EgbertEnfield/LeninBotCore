@@ -73,7 +73,8 @@ class Twitter:
                     logger.warning('Tweet message is empty')
             else:
                 _is_fatal = True
-                logger.error('Cannot use poston_twitter with debug-mode is true')
+                logger.error(
+                    'Cannot use poston_twitter with debug-mode is true')
         except FileNotFoundError:
             logger.exception(f'Picture file did not find in {cwd}')
         except Exception:
@@ -104,7 +105,7 @@ class Twitter:
 
     def _is_tweetable(self, message: str):
         text_count = 0
-        url_pattern = 'https?://[\w/:%#\$&\?\(\)~\.=\+\-]+'
+        url_pattern = 'https?://[\\w/:%#\\$&\\?\\(\\)~\\.=\\+\\-]+'
         links = re.findall(url_pattern, message)
 
         if (message == ''):
@@ -127,7 +128,8 @@ class Twitter:
                 for lc in link:
                     text_count -= 0.5
 
-        if (Decimal(str(text_count)).quantize(Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
+        if (Decimal(str(text_count)).quantize(
+                Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
             return True
         else:
             return False
@@ -219,57 +221,36 @@ def create_logger():
     return _logger
 
 
-class Settings:
-    def __init__(self) -> None:
-        pass
+def load_settings():
+    try:
+        with open(settings_file, 'r') as reader:
+            j_settings = json.load(reader.read())
+    except FileNotFoundError:
+        logger.error(f'settings.json did not find in {cwd}. set default')
+    finally:
+        j_settings = {}
+        j_settings.setdefault('log', {})
+        j_settings['log'].setdefault('maxLogSize', 1024 * 5)
+        j_settings['log'].setdefault('logDirectory', f'{cwd}/log')
+        j_settings['log'].setdefault('isLogStacktrace', False)
+        j_settings.setdefault('main', {})
+        j_settings['main'].setdefault('ignoreError', True)
+        j_settings['main'].setdefault('isDebugMode', False)
+        j_settings['main'].setdefault('isShowLogOutput', False)
+        return j_settings
 
-    def get_settings(self, dic: dict = {}):
-        """
-        デフォルト設定またはdicで指定されていない設定を付加して取得
 
-        Args:
-            dic (:obj:`dict`, optional): Json形式から変換された辞書
-
-        Returns:
-            dict: 設定データ
-        """
-        dic.setdefault('log', {})
-        dic['log'].setdefault('maxLogSize', 1024 * 5)
-        dic['log'].setdefault('logDirectory', f'{cwd}/log')
-        dic['log'].setdefault('isLogStacktrace', False)
-        dic.setdefault('main', {})
-        dic['main'].setdefault('ignoreError', True)
-        dic['main'].setdefault('isDebugMode', False)
-        dic['main'].setdefault('isShowLogOutput', False)
-        return dic
-    
-    def load_settings(self):
-        try:
-            with open(settings_file, 'r') as reader:
-                json_dic = json.load(reader.read())
-        except FileNotFoundError:
-            logger.error(f'settings.json did not find in {cwd}. set default')
-        finally:
-            j_settings = self.get_settings(json_dic)
-            return j_settings
-
-    @staticmethod
-    def init_settings():
-        settings = {
-            'log': {
-                'maxLogSize': 1024 * 5,
-                'logDirectory': f'{cwd}/log',
-                'isLogStacktrace': False
-            },
-            'main': {
-                'ignoreError': True,
-                'isDebugMode': False,
-                'isShowLogOutput': False
-            }
+def init_settings():
+    json_dic = {
+        'main': {
+            'ignoreError': True,
+            'isDebugMode': False,
+            'isShowLogOutput': False
         }
-        with open(settings_file, 'w') as writer:
-            json_str = json.dumps(settings)
-            writer.write(json_str)
+    }
+    with open(settings_file, 'w') as writer:
+        json_str = json.dumps(json_dic)
+        writer.write(json_str)
 
 
 def parse_args():
@@ -279,13 +260,11 @@ def parse_args():
     arg_values['args'].setdefault('isShowLogOutput', False)
     arg_values['args'].setdefault('isGoodmorning', False)
     arg_values['args'].setdefault('isGoodnight', False)
-
     args = sys.argv
     if (len(args) == 0):
         return {}
     elif (len(args) == 1):
         return arg_values
-
     args.pop(0)
     parser = argparse.ArgumentParser(
         prog='botcore.py',
@@ -298,9 +277,7 @@ def parse_args():
     parser.add_argument('-m', '--good_morning', action='store_true')
     parser.add_argument('-n', '--good_night', action='store_true')
     parser.add_argument('-?', '--help', action='help')
-
     arg = parser.parse_args(args)
-
     if (arg.version):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
@@ -321,11 +298,10 @@ cwd: Final[str] = os.path.dirname(__file__)
 key_file: Final[str] = f'{cwd}/keys.json'
 tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
-settings: Final[dict] = parse_args() | Settings.load_settings()
+settings: Final[dict] = parse_args() | load_settings()
 
 logger: Final[logging.Logger] = create_logger()
 twitter: Final[Twitter] = Twitter()
-converter: Final[Settings] = Settings()
 
 if __name__ == '__main__':
     tweet = select_proverb()
