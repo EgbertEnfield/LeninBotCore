@@ -140,7 +140,7 @@ def select_proverb():
         if (settings['args']['isGoodmorning']):
             return 'Доброе утро'
         elif (settings['args']['isGoodnight']):
-            return ''
+            return 'Спокойной ночи'
         else:
             with open(tweets_file, 'r', encoding='utf-8') as raw_json:
                 proverbs = json.load(raw_json)
@@ -216,7 +216,8 @@ def create_logger():
     _logger = logging.getLogger()
     _logger.setLevel(logging.NOTSET)
     _logger.addHandler(file_handler)
-    _logger.addHandler(stream_handler)
+    if (is_show_log):
+        _logger.addHandler(stream_handler)
 
     return _logger
 
@@ -246,6 +247,11 @@ def init_settings():
             'ignoreError': True,
             'isDebugMode': False,
             'isShowLogOutput': False
+        },
+        'log': {
+            'maxLogSize': 1024 * 5,
+            'logDirectory': f'{cwd}/log',
+            'isLogStacktrace': False
         }
     }
     with open(settings_file, 'w') as writer:
