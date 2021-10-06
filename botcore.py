@@ -15,7 +15,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from logging.handlers import RotatingFileHandler
 
 # constants
-VERSION = '1.2.915.14'
+VERSION = '1.2.1007.2'
 
 
 class TweetMode(Enum):
