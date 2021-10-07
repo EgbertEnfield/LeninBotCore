@@ -18,21 +18,13 @@ from logging.handlers import RotatingFileHandler
 VERSION = '1.2.1007.2'
 
 
-class TweetMode(Enum):
-    Text = 0
-    Picture = 1
-    TextAndPicture = 2
-
-
-class Result(Enum):
-    Error = '[error]  '
-    Caution = '[caution]'
-    Info = '[info]   '
-    Success = '[success]'
-
-
 class Twitter:
     _api: Final[tweepy.API] = tweepy.API
+
+    class TweetMode(Enum):
+        Text = 0
+        Picture = 1
+        TextAndPicture = 2
 
     def __init__(self):
         try:
@@ -57,12 +49,12 @@ class Twitter:
             _is_fatal = False
             _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
             if (_is_debug is False):
-                if (mode == TweetMode.Picture):
+                if (mode == self.TweetMode.Picture):
                     self._api.update_with_media(status='', filename=path)
                 elif (message != ''):
-                    if (mode == TweetMode.Text):
+                    if (mode == self.TweetMode.Text):
                         self._api.update_status(message)
-                    elif (mode == TweetMode.TextAndPicture):
+                    elif (mode == self.TweetMode.TextAndPicture):
                         self._api.update_with_media(
                             status=message, filename=path)
                     else:
@@ -88,12 +80,12 @@ class Twitter:
     def tweet_debug(self, mode: TweetMode, message: str, path: str = ''):
         try:
             if (self._is_tweetable(message)):
-                if (mode == TweetMode.Picture and os.path.exists(path)):
+                if (mode == self.TweetMode.Picture and os.path.exists(path)):
                     print(path)
                 elif (message != ''):
-                    if (mode == TweetMode.Text):
+                    if (mode == self.TweetMode.Text):
                         print(message)
-                    elif (mode == TweetMode.TextAndPicture and os.path.exists(path)):
+                    elif (mode == self.TweetMode.TextAndPicture and os.path.exists(path)):
                         print(message)
                         print(path)
                 else:
@@ -135,13 +127,10 @@ class Twitter:
             return False
 
 
-def select_proverb():
-    try:
-        if (settings['args']['isGoodmorning']):
-            return 'Доброе утро'
-        elif (settings['args']['isGoodnight']):
-            return 'Спокойной ночи'
-        else:
+class BotCore:
+    @staticmethod
+    def select_proverb():
+        try:
             with open(tweets_file, 'r', encoding='utf-8') as raw_json:
                 proverbs = json.load(raw_json)
                 selected = []
@@ -168,11 +157,12 @@ def select_proverb():
                         logger.warning('proverbs list is empty')
                 s = random.randint(0, len(selected) - 1)
                 return selected[s]
-    except FileNotFoundError:
-        logger.exception(f'proverbs.json did not find in {cwd}')
-    except Exception:
-        logger.exception('Ignoring exception in select_proverb')
-        return ''
+        except FileNotFoundError:
+            logger.exception(f'proverbs.json did not find in {cwd}')
+            return ''
+        except Exception:
+            logger.exception('Ignoring exception in select_proverb')
+            return ''
 
 
 def create_logger():
@@ -188,7 +178,7 @@ def create_logger():
             log_file = log
             break
     else:
-        log_file = f'{log_dir}/{datetime.datetime.now():"%y%m%d%H%M%S"}.log'
+        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
         with open(log_file, 'w') as f:
             f.write('')
 
@@ -198,11 +188,6 @@ def create_logger():
         datefmt='%y/%m/%d %H:%M:%S'
     )
 
-    if (is_show_log):
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(format)
-        stream_handler.setLevel(logging.NOTSET)
-
     file_handler = RotatingFileHandler(
         filename=log_file,
         encoding='utf8',
@@ -211,15 +196,20 @@ def create_logger():
         backupCount=1000
     )
     file_handler.setFormatter(format)
-    file_handler.setLevel(logging.NOTSET)
+    file_handler.setLevel(logging.DEBUG)
 
-    _logger = logging.getLogger()
-    _logger.setLevel(logging.NOTSET)
-    _logger.addHandler(file_handler)
     if (is_show_log):
-        _logger.addHandler(stream_handler)
+        stream_handler = logging.StreamHandler()
+        stream_handler.setFormatter(format)
+        stream_handler.setLevel(logging.DEBUG)
 
-    return _logger
+    internal_logger = logging.getLogger()
+    internal_logger.setLevel(logging.DEBUG)
+    internal_logger.addHandler(file_handler)
+    if (is_show_log):
+        internal_logger.addHandler(stream_handler)
+
+    return internal_logger
 
 
 def load_settings():
@@ -310,9 +300,16 @@ logger: Final[logging.Logger] = create_logger()
 twitter: Final[Twitter] = Twitter()
 
 if __name__ == '__main__':
-    tweet = select_proverb()
+    tweet = ''
+    if (settings['args']['isGoodmorning']):
+        tweet = 'Доброе утро'
+    elif (settings['args']['isGoodnight']):
+        tweet = 'Спокойной ночи'
+    else:
+        tweet = BotCore.select_proverb()
+
     _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
     if (_is_debug is False):
-        twitter.poston_twitter(TweetMode.Text, tweet)
+        twitter.poston_twitter(Twitter.TweetMode.Text, tweet)
     else:
-        twitter.tweet_debug(TweetMode.Text, tweet)
+        twitter.tweet_debug(Twitter.TweetMode.Text, tweet)
