@@ -122,6 +122,7 @@ class Twitter:
 
         if (Decimal(str(text_count)).quantize(
                 Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
+            logger.debug('ok')
             return True
         else:
             return False
@@ -208,6 +209,8 @@ def create_logger():
     internal_logger.addHandler(file_handler)
     if (is_show_log):
         internal_logger.addHandler(stream_handler)
+
+    internal_logger.warning('foo')
 
     return internal_logger
 
