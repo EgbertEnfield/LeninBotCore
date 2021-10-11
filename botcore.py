@@ -37,6 +37,7 @@ class Twitter:
                 keys['twitter']['token'],
                 keys['twitter']['tokenSecret'])
             self._api = tweepy.API(auth)
+            logger.debug('Bot setup complete')
         except FileNotFoundError:
             logger.exception(f'keys.json did not find in {cwd}')
         except KeyError:
@@ -120,9 +121,13 @@ class Twitter:
                 for lc in link:
                     text_count -= 0.5
 
-        if (Decimal(str(text_count)).quantize(
-                Decimal('0'), rounding=ROUND_HALF_UP) <= 140):
-            logger.debug('ok')
+        text_count = Decimal(
+            str(text_count)).quantize(
+            Decimal('0'),
+            rounding=ROUND_HALF_UP)
+
+        if (text_count <= 140):
+            logger.debug(f'Message length within 140.({text_count})')
             return True
         else:
             return False
@@ -209,8 +214,6 @@ def create_logger():
     internal_logger.addHandler(file_handler)
     if (is_show_log):
         internal_logger.addHandler(stream_handler)
-
-    internal_logger.warning('foo')
 
     return internal_logger
 
