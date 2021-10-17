@@ -172,9 +172,23 @@ class BotCore:
 
 
 def create_logger():
+    log_level = logging.INFO
     log_dir: Final[str] = settings['log']['logDirectory']
     max_log_size: Final[int] = settings['log']['maxLogSize']
     is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
+
+    if (settings['log']['logLevel'] == 'critical'):
+        log_level = logging.CRITICAL
+    elif (settings['log']['logLevel'] == 'error'):
+        log_level = logging.ERROR
+    elif (settings['log']['logLevel'] == 'info'):
+        log_level = logging.INFO
+    elif (settings['log']['logLevel'] == 'debug'):
+        log_level = logging.DEBUG
+    elif (settings['log']['logLevel'] == 'notset'):
+        log_level = logging.NOTSET
+    else:
+        return
 
     if not (os.path.exists(log_dir)):
         os.mkdir(log_dir)
@@ -184,6 +198,7 @@ def create_logger():
             log_file = log
             break
     else:
+        # create new empty log file
         log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
         with open(log_file, 'w') as f:
             f.write('')
@@ -202,15 +217,15 @@ def create_logger():
         backupCount=1000
     )
     file_handler.setFormatter(format)
-    file_handler.setLevel(logging.DEBUG)
+    file_handler.setLevel(log_level)
 
     if (is_show_log):
         stream_handler = logging.StreamHandler()
         stream_handler.setFormatter(format)
-        stream_handler.setLevel(logging.DEBUG)
+        stream_handler.setLevel(log_level)
 
     internal_logger = logging.getLogger()
-    internal_logger.setLevel(logging.DEBUG)
+    internal_logger.setLevel(log_level)
     internal_logger.addHandler(file_handler)
     if (is_show_log):
         internal_logger.addHandler(stream_handler)
@@ -229,7 +244,8 @@ def load_settings():
         j_settings.setdefault('log', {})
         j_settings['log'].setdefault('maxLogSize', 1024 * 5)
         j_settings['log'].setdefault('logDirectory', f'{cwd}/log')
-        j_settings['log'].setdefault('isLogStacktrace', False)
+        j_settings['log'].setdefault('isLogStacktrace', True)
+        j_settings['log'].setdefault('logLevel', 'info')
         j_settings.setdefault('main', {})
         j_settings['main'].setdefault('ignoreError', True)
         j_settings['main'].setdefault('isDebugMode', False)
@@ -247,7 +263,8 @@ def init_settings():
         'log': {
             'maxLogSize': 1024 * 5,
             'logDirectory': f'{cwd}/log',
-            'isLogStacktrace': False
+            'isLogStacktrace': False,
+            'logLevel': 'info'
         }
     }
     with open(settings_file, 'w') as writer:
