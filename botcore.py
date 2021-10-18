@@ -67,7 +67,7 @@ class Twitter:
             else:
                 _is_fatal = True
                 logger.error(
-                    'Cannot use poston_twitter with debug-mode is true')
+                    'Cannot use poston_twitter with debug-mode true')
         except FileNotFoundError:
             logger.exception(f'Picture file did not find in {cwd}')
         except Exception:
@@ -111,9 +111,6 @@ class Twitter:
                 text_count += 1
             elif (j == 'Na' or j == 'A' or c == '\n'):
                 text_count += 0.5
-            elif (j == 'N'):
-                logger.warning('Using invalid chars')
-                return False
 
         if (len(links) > 0):
             text_count += 11.5
@@ -127,9 +124,10 @@ class Twitter:
             rounding=ROUND_HALF_UP)
 
         if (text_count <= 140):
-            logger.debug(f'Message length within 140.({text_count})')
+            logger.debug(f'Message length within 140. ({text_count})')
             return True
         else:
+            logger.error(f'Message length over 140. ({text_count})')
             return False
 
 
