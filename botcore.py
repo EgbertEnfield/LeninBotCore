@@ -1,3 +1,4 @@
+from logging import handlers
 import os
 import re
 import sys
@@ -12,10 +13,10 @@ import logging
 from enum import Enum
 from typing import Final
 from decimal import Decimal, ROUND_HALF_UP
-from logging.handlers import RotatingFileHandler
+from logging.handlers import TimedRotatingFileHandler
 
 # constants
-VERSION = '1.2.1007.2'
+VERSION = '1.2.1020.5'
 
 
 class Twitter:
@@ -80,6 +81,7 @@ class Twitter:
 
     def tweet_debug(self, mode: TweetMode, message: str, path: str = ''):
         try:
+            _is_fatal = False
             if (self._is_tweetable(message)):
                 if (mode == self.TweetMode.Picture and os.path.exists(path)):
                     print(path)
@@ -90,11 +92,18 @@ class Twitter:
                         print(message)
                         print(path)
                 else:
+                    _is_fatal = True
                     logger.warning('Tweet message is empty')
             else:
+                _is_fatal = True
                 logger.warning('Tweet message is up to 140 chars')
         except FileNotFoundError:
             logger.exception(f'Picture file did not find in {cwd}')
+        else:
+            if (_is_fatal is False):
+                logger.info('Succeeded to debug tweet')
+            else:
+                logger.info('Debug finished with error')
 
     def _is_tweetable(self, message: str):
         text_count = 0
@@ -124,10 +133,10 @@ class Twitter:
             rounding=ROUND_HALF_UP)
 
         if (text_count <= 140):
-            logger.debug(f'Message length within 140. ({text_count})')
+            logger.debug(f'Message length within 140 ({text_count})')
             return True
         else:
-            logger.error(f'Message length over 140. ({text_count})')
+            logger.error(f'Message length over 140 ({text_count})')
             return False
 
 
@@ -207,12 +216,11 @@ def create_logger():
         datefmt='%y/%m/%d %H:%M:%S'
     )
 
-    file_handler = RotatingFileHandler(
+    file_handler = handlers.TimedRotatingFileHandler(
         filename=log_file,
-        encoding='utf8',
-        mode='w',
-        maxBytes=max_log_size,
-        backupCount=1000
+        encoding='UTF-8',
+        when='MIDNIGHT',
+        backupCount=7
     )
     file_handler.setFormatter(format)
     file_handler.setLevel(log_level)
@@ -228,26 +236,29 @@ def create_logger():
     if (is_show_log):
         internal_logger.addHandler(stream_handler)
 
+    internal_logger.debug(f'current log level is {log_level}')
+    internal_logger.debug(f'current log file path is {log_file}')
+    internal_logger.debug('logger setup complete')
+
     return internal_logger
 
 
 def load_settings():
     try:
         with open(settings_file, 'r') as reader:
-            j_settings = json.load(reader.read())
+            j_settings = json.load(reader)
     except FileNotFoundError:
         logger.error(f'settings.json did not find in {cwd}. set default')
     finally:
-        j_settings = {}
+        j_settings.setdefault('main', {})
+        j_settings['main'].setdefault('ignoreError', True)
+        j_settings['main'].setdefault('isDebugMode', False)
+        j_settings['main'].setdefault('isShowLogOutput', False)
         j_settings.setdefault('log', {})
         j_settings['log'].setdefault('maxLogSize', 1024 * 5)
         j_settings['log'].setdefault('logDirectory', f'{cwd}/log')
         j_settings['log'].setdefault('isLogStacktrace', True)
         j_settings['log'].setdefault('logLevel', 'info')
-        j_settings.setdefault('main', {})
-        j_settings['main'].setdefault('ignoreError', True)
-        j_settings['main'].setdefault('isDebugMode', False)
-        j_settings['main'].setdefault('isShowLogOutput', False)
         return j_settings
 
 

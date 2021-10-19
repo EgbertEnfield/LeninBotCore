@@ -6,6 +6,7 @@
     },
     "log": {
         "maxLogSize": 1024,
-        "isLogStacktrace": true
+        "isLogStacktrace": true,
+        "logLevel": "debug"
     }
 }
