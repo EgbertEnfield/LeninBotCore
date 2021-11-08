@@ -178,69 +178,81 @@ class BotCore:
             return ''
 
 
-def create_logger():
-    log_level = logging.INFO
-    log_dir: Final[str] = settings['log']['logDirectory']
-    max_log_size: Final[int] = settings['log']['maxLogSize']
-    is_show_log: Final[bool] = settings['main']['isShowLogOutput'] | settings['args']['isShowLogOutput']
+class Log:
+    def create_logger(self):
+        level_file = logging.INFO
+        level_stream = logging.INFO
 
-    if (settings['log']['logLevel'] == 'critical'):
-        log_level = logging.CRITICAL
-    elif (settings['log']['logLevel'] == 'error'):
-        log_level = logging.ERROR
-    elif (settings['log']['logLevel'] == 'info'):
-        log_level = logging.INFO
-    elif (settings['log']['logLevel'] == 'debug'):
-        log_level = logging.DEBUG
-    elif (settings['log']['logLevel'] == 'notset'):
-        log_level = logging.NOTSET
-    else:
-        return
+        log_dir = settings['log']['file']['directory']
+        is_enable_file = settings['log']['file']['enable']
+        is_enable_stream = settings['log']['stream']['enable']
 
-    if not (os.path.exists(log_dir)):
-        os.mkdir(log_dir)
+        level_file = self._get_log_level(settings['log']['file']['level'])
+        level_stream = self._get_log_level(settings['log']['stream']['level'])
 
-    for log in glob.glob(log_dir + '/*.log'):
-        if (os.path.getsize(log) <= max_log_size):
-            log_file = log
-            break
-    else:
-        # create new empty log file
-        log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
-        with open(log_file, 'w') as f:
-            f.write('')
+        if not (os.path.exists(log_dir)):
+            os.mkdir(log_dir)
 
-    format = logging.Formatter(
-        '{asctime} [{levelname}]  {message}',
-        style='{',
-        datefmt='%y/%m/%d %H:%M:%S'
-    )
+        for log in glob.glob(log_dir + '/*.log'):
+            if (log.endswith('.log')):
+                log_file = log
+                break
+        else:
+            # create new empty log file
+            log_file = f'{log_dir}/{datetime.datetime.now().strftime("%y%m%d%H%M%S")}.log'
+            with open(log_file, 'w') as f:
+                f.write('')
 
-    file_handler = handlers.TimedRotatingFileHandler(
-        filename=log_file,
-        encoding='UTF-8',
-        when='MIDNIGHT',
-        backupCount=7
-    )
-    file_handler.setFormatter(format)
-    file_handler.setLevel(log_level)
+        format = logging.Formatter(
+            '{asctime} [{levelname}]  {message}',
+            style='{',
+            datefmt='%y/%m/%d %H:%M:%S'
+        )
 
-    if (is_show_log):
-        stream_handler = logging.StreamHandler()
-        stream_handler.setFormatter(format)
-        stream_handler.setLevel(log_level)
+        if (is_enable_file):
+            file_handler = handlers.TimedRotatingFileHandler(
+                filename=log_file,
+                encoding='UTF-8',
+                when='MIDNIGHT',
+                backupCount=7
+            )
+            file_handler.setFormatter(format)
+            file_handler.setLevel(level_file)
 
-    internal_logger = logging.getLogger()
-    internal_logger.setLevel(log_level)
-    internal_logger.addHandler(file_handler)
-    if (is_show_log):
-        internal_logger.addHandler(stream_handler)
+        if (is_enable_stream):
+            stream_handler = logging.StreamHandler()
+            stream_handler.setFormatter(format)
+            stream_handler.setLevel(level_stream)
 
-    internal_logger.debug(f'current log level is {log_level}')
-    internal_logger.debug(f'current log file path is {log_file}')
-    internal_logger.debug('logger setup complete')
+        internal_logger = logging.getLogger()
+        internal_logger.setLevel(logging.NOTSET)
+        if (is_enable_file):
+            internal_logger.addHandler(file_handler)
+        if (is_enable_stream):
+            internal_logger.addHandler(stream_handler)
 
-    return internal_logger
+        internal_logger.debug(
+            f'current file_handler log level is {settings["log"]["file"]["level"]}')
+        internal_logger.debug(
+            f'current stream_handler log level is {settings["log"]["stream"]["level"]}')
+        internal_logger.debug(f'current log file path is {log_file}')
+        internal_logger.debug('logger setup complete')
+
+        return internal_logger
+
+    def _get_log_level(self, level: str):
+        if (level == 'critical'):
+            return logging.CRITICAL
+        elif (level == 'error'):
+            return logging.ERROR
+        elif (level == 'info'):
+            return logging.INFO
+        elif (level == 'debug'):
+            return logging.DEBUG
+        elif (level == 'notset'):
+            return logging.NOTSET
+        else:
+            return logging.INFO
 
 
 def load_settings():
@@ -250,16 +262,35 @@ def load_settings():
     except FileNotFoundError:
         logger.error(f'settings.json did not find in {cwd}. set default')
     finally:
-        j_settings.setdefault('main', {})
-        j_settings['main'].setdefault('ignoreError', True)
-        j_settings['main'].setdefault('isDebugMode', False)
-        j_settings['main'].setdefault('isShowLogOutput', False)
-        j_settings.setdefault('log', {})
-        j_settings['log'].setdefault('maxLogSize', 1024 * 5)
-        j_settings['log'].setdefault('logDirectory', f'{cwd}/log')
-        j_settings['log'].setdefault('isLogStacktrace', True)
-        j_settings['log'].setdefault('logLevel', 'info')
+        init_dict(j_settings)
         return j_settings
+
+
+def init_dict(dic: dict):
+    def_dict = {
+        "main": {
+            "ignoreError": True,
+            "isShowLogOutput": True,
+            "isDebugMode": True
+        },
+        "log": {
+            "file": {
+                "enable": True,
+                "level": "info"
+            },
+            "stream": {
+                "enable": True,
+                "level": "info"
+            }
+        }
+    }
+
+    for key in dic:
+        if (isinstance(def_dict[key], dict)):
+            dic.setdefault(key, {})
+            init_dict(dic[key])
+        else:
+            dic.setdefault(key, def_dict[key])
 
 
 def init_settings():
@@ -328,7 +359,8 @@ tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
 settings: Final[dict] = parse_args() | load_settings()
 
-logger: Final[logging.Logger] = create_logger()
+log: Log[Log] = Log()
+logger: Final[logging.Logger] = log.create_logger()
 twitter: Final[Twitter] = Twitter()
 
 if __name__ == '__main__':

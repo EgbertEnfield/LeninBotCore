@@ -5,8 +5,13 @@
         "isDebugMode": true
     },
     "log": {
-        "maxLogSize": 1024,
-        "isLogStacktrace": true,
-        "logLevel": "debug"
+        "file": {
+            "enable": true,
+            "level": "info"
+        },
+        "stream": {
+            "enable": true,
+            "level": "info"
+        }
     }
 }
