@@ -19,6 +19,12 @@ from logging.handlers import TimedRotatingFileHandler
 VERSION = '1.2.1020.5'
 
 
+class ExtDict(dict):
+    def __missing__(self, key):
+        v = self[key] = type(self)()
+        return v
+
+
 class Twitter:
     _api: Final[tweepy.API] = tweepy.API
 
@@ -258,39 +264,26 @@ class Log:
 def load_settings():
     try:
         with open(settings_file, 'r') as reader:
-            j_settings = json.load(reader)
+            j_dic = json.load(reader)
     except FileNotFoundError:
         logger.error(f'settings.json did not find in {cwd}. set default')
     finally:
-        init_dict(j_settings)
-        return j_settings
+        j_dic.setdefault('main', {})
+        j_dic['main'].setdefault('ignoreError', True)
+        j_dic['main'].setdefault('isShowLogOutput', True)
+        j_dic['main'].setdefault('isDebugMode', True)
 
+        j_dic.setdefault('log', {})
+        j_dic['log'].setdefault('file', {})
+        j_dic['log']['file'].setdefault('enable', True)
+        j_dic['log']['file'].setdefault('level', 'info')
 
-def init_dict(dic: dict):
-    def_dict = {
-        "main": {
-            "ignoreError": True,
-            "isShowLogOutput": True,
-            "isDebugMode": True
-        },
-        "log": {
-            "file": {
-                "enable": True,
-                "level": "info"
-            },
-            "stream": {
-                "enable": True,
-                "level": "info"
-            }
-        }
-    }
+        j_dic['log'].setdefault('stream', {})
+        j_dic['log']['stream'].setdefault('enable', True)
+        j_dic['log']['stream'].setdefault('level', 'info')
 
-    for key in dic:
-        if (isinstance(def_dict[key], dict)):
-            dic.setdefault(key, {})
-            init_dict(dic[key])
-        else:
-            dic.setdefault(key, def_dict[key])
+        print(j_dic)
+        return j_dic
 
 
 def init_settings():

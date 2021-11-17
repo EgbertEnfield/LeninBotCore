@@ -7,7 +7,7 @@
     "log": {
         "file": {
             "enable": true,
-            "level": "info"
+            "level": "debug"
         },
         "stream": {
             "enable": true,
