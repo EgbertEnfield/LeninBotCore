@@ -1,6 +1,6 @@
 {
     "russian": {
-        "isEnable": true,
+        "enable": true,
         "proverbs": [
             "Абстрактной истины нет, истина всегда конкретна.",
             "Все на свете имеет две стороны.",
@@ -155,11 +155,11 @@
         ]
     },
     "english": {
-        "isEnable": false,
+        "enable": false,
         "proverbs": []
     },
     "japanese": {
-        "isEnable": true,
+        "enable": true,
         "proverbs": [
             "どの政治あるいは社会グループ、勢力、重要人物が、ある特定の提案や処置などを支持するかどうか、そのことが明確でなかったら、『それは誰の役に立つのか』をつねに問わなければならない",
             "一人は万人のために、万人は一人のために",
@@ -222,6 +222,19 @@
         ]
     },
     "morning": {
-        "isEnable": true
+        "enable": true,
+        "tweet": "Доброе утро!\nおはようございます\n今日も1日労働に力を入れよう",
+        "picture": {
+            "enable": false,
+            "directory": "/pic/morning"
+        }
+    },
+    "evening": {
+        "enable": true,
+        "tweet": "Спокойной ночи\nおやすみなさい",
+        "picture": {
+            "enable": false,
+            "directory": "/pic/evening"
+        }
     }
 }

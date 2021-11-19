@@ -27,6 +27,7 @@ class ExtDict(dict):
 
 class Twitter:
     _api: Final[tweepy.API] = tweepy.API
+    _api_v2: Final[tweepy.Client] = tweepy.Client
 
     class TweetMode(Enum):
         Text = 0
@@ -153,21 +154,21 @@ class BotCore:
             with open(tweets_file, 'r', encoding='utf-8') as raw_json:
                 proverbs = json.load(raw_json)
                 selected = []
-                if (proverbs['russian']['isEnable']):
+                if (proverbs['russian']['enable']):
                     if (len(proverbs['russian']['proverbs']) != 0):
                         russian = proverbs['russian']['proverbs']
                         r = random.randint(0, len(russian) - 1)
                         selected.append(russian[r])
                     else:
                         logger.warning('proverbs list is empty')
-                if (proverbs['english']['isEnable']):
+                if (proverbs['english']['enable']):
                     if (len(proverbs['english']['proverbs']) != 0):
                         english = proverbs['english']['proverbs']
                         e = random.randint(0, len(english) - 1)
                         selected.append(english[e])
                     else:
                         logger.warning('proverbs list is empty')
-                if (proverbs['japanese']['isEnable']):
+                if (proverbs['japanese']['enable']):
                     if (len(proverbs['japanese']['proverbs']) != 0):
                         japanese = proverbs['japanese']['proverbs']
                         j = random.randint(0, len(japanese) - 1)
@@ -277,6 +278,7 @@ def load_settings():
         j_dic['log'].setdefault('file', {})
         j_dic['log']['file'].setdefault('enable', True)
         j_dic['log']['file'].setdefault('level', 'info')
+        j_dic['log']['file'].setdefault('directory', f'{cwd}/log')
 
         j_dic['log'].setdefault('stream', {})
         j_dic['log']['stream'].setdefault('enable', True)
@@ -352,7 +354,7 @@ tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
 settings: Final[dict] = parse_args() | load_settings()
 
-log: Log[Log] = Log()
+log: Final[Log] = Log()
 logger: Final[logging.Logger] = log.create_logger()
 twitter: Final[Twitter] = Twitter()
 
