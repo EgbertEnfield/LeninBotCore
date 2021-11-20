@@ -12,7 +12,8 @@
             "console": "integratedTerminal",
             "args": [
                 "-d",
-                "-v"
+                "-v",
+                "-n"
             ]
         }
     ]

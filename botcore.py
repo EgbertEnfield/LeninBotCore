@@ -148,41 +148,83 @@ class Twitter:
 
 
 class BotCore:
-    @staticmethod
-    def select_proverb():
+    _tweets: dict = {}
+
+    class Greeting(Enum):
+        Morning = 0,
+        Night = 1
+
+    def __init__(self):
         try:
-            with open(tweets_file, 'r', encoding='utf-8') as raw_json:
-                proverbs = json.load(raw_json)
-                selected = []
-                if (proverbs['russian']['enable']):
-                    if (len(proverbs['russian']['proverbs']) != 0):
-                        russian = proverbs['russian']['proverbs']
-                        r = random.randint(0, len(russian) - 1)
-                        selected.append(russian[r])
-                    else:
-                        logger.warning('proverbs list is empty')
-                if (proverbs['english']['enable']):
-                    if (len(proverbs['english']['proverbs']) != 0):
-                        english = proverbs['english']['proverbs']
-                        e = random.randint(0, len(english) - 1)
-                        selected.append(english[e])
-                    else:
-                        logger.warning('proverbs list is empty')
-                if (proverbs['japanese']['enable']):
-                    if (len(proverbs['japanese']['proverbs']) != 0):
-                        japanese = proverbs['japanese']['proverbs']
-                        j = random.randint(0, len(japanese) - 1)
-                        selected.append(japanese[j])
-                    else:
-                        logger.warning('proverbs list is empty')
-                s = random.randint(0, len(selected) - 1)
-                return selected[s]
+            with open(tweets_file, 'r', encoding='utf-8') as raw_jsom:
+                self._tweets = json.load(raw_jsom)
         except FileNotFoundError:
             logger.exception(f'proverbs.json did not find in {cwd}')
-            return ''
+
+    def select_proverb(self):
+        try:
+            proverbs = self._tweets['main']
+            selected = []
+            if (proverbs['russian']['enable']):
+                if (len(proverbs['russian']['proverbs']) != 0):
+                    russian = proverbs['russian']['proverbs']
+                    r = random.randint(0, len(russian) - 1)
+                    selected.append(russian[r])
+                else:
+                    logger.warning('proverbs list is empty')
+            if (proverbs['english']['enable']):
+                if (len(proverbs['english']['proverbs']) != 0):
+                    english = proverbs['english']['proverbs']
+                    e = random.randint(0, len(english) - 1)
+                    selected.append(english[e])
+                else:
+                    logger.warning('proverbs list is empty')
+            if (proverbs['japanese']['enable']):
+                if (len(proverbs['japanese']['proverbs']) != 0):
+                    japanese = proverbs['japanese']['proverbs']
+                    j = random.randint(0, len(japanese) - 1)
+                    selected.append(japanese[j])
+                else:
+                    logger.warning('proverbs list is empty')
+            s = random.randint(0, len(selected) - 1)
+            return selected[s]
         except Exception:
             logger.exception('Ignoring exception in select_proverb')
             return ''
+
+    def create_greeting(self, mode: Greeting):
+        greeting = self._tweets['greeting']
+        if (mode == self.Greeting.Morning and greeting['morning']['enable']):
+            morning = greeting['morning']
+            msg = [morning['tweet'], '']
+
+            if (morning['picture']['enable']):
+                path = self._select_picture(
+                    cwd + morning['picture']['directory'])
+                if (path != ''):
+                    msg[1] = path
+
+            return msg
+
+        if (mode == self.Greeting.Night and greeting['evening']['enable']):
+            evening = greeting['evening']
+            msg = [evening['tweet'], '']
+
+            if (evening['picture']['enable']):
+                path = self._select_picture(
+                    cwd + evening['picture']['directory'])
+                if (path != ''):
+                    msg[1] = path
+
+            return msg
+
+    def _select_picture(self, path: str):
+        pic_list = []
+        ext_list = settings['extension']['picture']
+        for ext in ext_list:
+            pic_list.extend(glob.glob(path + f'/*.{ext}'))
+        r = random.randint(0, len(pic_list) - 1)
+        return pic_list[r]
 
 
 class Log:
@@ -284,7 +326,6 @@ def load_settings():
         j_dic['log']['stream'].setdefault('enable', True)
         j_dic['log']['stream'].setdefault('level', 'info')
 
-        print(j_dic)
         return j_dic
 
 
@@ -354,21 +395,51 @@ tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
 settings: Final[dict] = parse_args() | load_settings()
 
+# these are must put in this position
 log: Final[Log] = Log()
 logger: Final[logging.Logger] = log.create_logger()
+
+core: Final[BotCore] = BotCore()
 twitter: Final[Twitter] = Twitter()
 
 if __name__ == '__main__':
-    tweet = ''
+    tweet = {}
     if (settings['args']['isGoodmorning']):
-        tweet = 'Доброе утро'
+        li = core.create_greeting(core.Greeting.Morning)
+        tweet = {
+            'tweet': li[0],
+            'path': li[1]
+        }
     elif (settings['args']['isGoodnight']):
-        tweet = 'Спокойной ночи'
+        li = core.create_greeting(core.Greeting.Night)
+        tweet = {
+            'tweet': li[0],
+            'path': li[1]
+        }
     else:
-        tweet = BotCore.select_proverb()
+        tweet = {
+            'tweet': core.select_proverb(),
+            'path': ''
+        }
 
     _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
     if (_is_debug is False):
-        twitter.poston_twitter(Twitter.TweetMode.Text, tweet)
+        if (tweet['path'] != ''):
+            twitter.poston_twitter(
+                Twitter.TweetMode.TextAndPicture,
+                tweet['tweet'],
+                tweet['path'])
+        else:
+            twitter.poston_twitter(
+                Twitter.TweetMode.Text,
+                tweet['tweet'])
     else:
-        twitter.tweet_debug(Twitter.TweetMode.Text, tweet)
+        if (tweet['path'] != ''):
+            twitter.tweet_debug(
+                Twitter.TweetMode.TextAndPicture,
+                tweet['tweet'],
+                tweet['path'])
+        else:
+            twitter.tweet_debug(
+                Twitter.TweetMode.Text,
+                tweet['tweet'])

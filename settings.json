@@ -13,5 +13,13 @@
             "enable": true,
             "level": "info"
         }
+    },
+    "extension": {
+        "picture": [
+            "jpg",
+            "jpeg",
+            "png",
+            "gif"
+        ]
     }
 }
