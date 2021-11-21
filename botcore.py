@@ -19,12 +19,6 @@ from logging.handlers import TimedRotatingFileHandler
 VERSION = '1.2.1020.5'
 
 
-class ExtDict(dict):
-    def __missing__(self, key):
-        v = self[key] = type(self)()
-        return v
-
-
 class Twitter:
     _api: Final[tweepy.API] = tweepy.API
     _api_v2: Final[tweepy.Client] = tweepy.Client
@@ -56,7 +50,7 @@ class Twitter:
     def poston_twitter(self, mode: TweetMode, message: str, path: str = ''):
         try:
             _is_fatal = False
-            _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
+            _is_debug = settings['args']['debugMode'] | settings['main']['debugMode']
             if (_is_debug is False):
                 if (mode == self.TweetMode.Picture):
                     self._api.update_with_media(status='', filename=path)
@@ -159,7 +153,7 @@ class BotCore:
             with open(tweets_file, 'r', encoding='utf-8') as raw_jsom:
                 self._tweets = json.load(raw_jsom)
         except FileNotFoundError:
-            logger.exception(f'proverbs.json did not find in {cwd}')
+            logger.exception(f'tweets.json did not find in {cwd}')
 
     def select_proverb(self):
         try:
@@ -236,8 +230,10 @@ class Log:
         is_enable_file = settings['log']['file']['enable']
         is_enable_stream = settings['log']['stream']['enable']
 
-        level_file = self._get_log_level(settings['log']['file']['level'])
-        level_stream = self._get_log_level(settings['log']['stream']['level'])
+        level_file = self._get_log_level(
+            settings['log']['file']['level'])
+        level_stream = self._get_log_level(
+            settings['log']['stream']['level'])
 
         if not (os.path.exists(log_dir)):
             os.mkdir(log_dir)
@@ -313,8 +309,8 @@ def load_settings():
     finally:
         j_dic.setdefault('main', {})
         j_dic['main'].setdefault('ignoreError', True)
-        j_dic['main'].setdefault('isShowLogOutput', True)
-        j_dic['main'].setdefault('isDebugMode', True)
+        j_dic['main'].setdefault('showStream', True)
+        j_dic['main'].setdefault('debugMode', True)
 
         j_dic.setdefault('log', {})
         j_dic['log'].setdefault('file', {})
@@ -329,32 +325,12 @@ def load_settings():
         return j_dic
 
 
-def init_settings():
-    json_dic = {
-        'main': {
-            'ignoreError': True,
-            'isDebugMode': False,
-            'isShowLogOutput': False
-        },
-        'log': {
-            'maxLogSize': 1024 * 5,
-            'logDirectory': f'{cwd}/log',
-            'isLogStacktrace': False,
-            'logLevel': 'info'
-        }
-    }
-    with open(settings_file, 'w') as writer:
-        json_str = json.dumps(json_dic)
-        writer.write(json_str)
-
-
 def parse_args():
     arg_values = {}
     arg_values.setdefault('args', {})
-    arg_values['args'].setdefault('isDebugMode', False)
-    arg_values['args'].setdefault('isShowLogOutput', False)
-    arg_values['args'].setdefault('isGoodmorning', False)
-    arg_values['args'].setdefault('isGoodnight', False)
+    arg_values['args'].setdefault('debugMode', False)
+    arg_values['args'].setdefault('showStream', False)
+    arg_values['args'].setdefault('mode', 'default')
     args = sys.argv
     if (len(args) == 0):
         return {}
@@ -377,12 +353,12 @@ def parse_args():
         print(f'botcore.py version: {VERSION}')
         sys.exit()
     elif (arg.good_morning and arg.good_night):
-        arg_values['args']['isDebugMode'] = arg.debug
-        arg_values['args']['isShowLogOutput'] = arg.verbose
+        arg_values['args']['debugMode'] = arg.debug
+        arg_values['args']['showStream'] = arg.verbose
         return arg_values
     else:
-        arg_values['args']['isDebugMode'] = arg.debug
-        arg_values['args']['isShowLogOutput'] = arg.verbose
+        arg_values['args']['debugMode'] = arg.debug
+        arg_values['args']['showStream'] = arg.verbose
         arg_values['args']['isGoodmorning'] = arg.good_morning
         arg_values['args']['isGoodnight'] = arg.good_night
         return arg_values
@@ -422,7 +398,7 @@ if __name__ == '__main__':
             'path': ''
         }
 
-    _is_debug = settings['args']['isDebugMode'] | settings['main']['isDebugMode']
+    _is_debug = settings['args']['debugMode'] | settings['main']['debugMode']
     if (_is_debug is False):
         if (tweet['path'] != ''):
             twitter.poston_twitter(
