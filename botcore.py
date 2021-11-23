@@ -326,41 +326,64 @@ def load_settings():
 
 
 def parse_args():
-    arg_values = {}
-    arg_values.setdefault('args', {})
-    arg_values['args'].setdefault('debugMode', False)
-    arg_values['args'].setdefault('showStream', False)
-    arg_values['args'].setdefault('mode', 'default')
+    arg_values = {
+        'args': {
+            'debug': False,
+            'verbose': False,
+            'mode': 'bot'
+        }
+    }
+
     args = sys.argv
     if (len(args) == 0):
         return {}
     elif (len(args) == 1):
         return arg_values
     args.pop(0)
+
     parser = argparse.ArgumentParser(
         prog='botcore.py',
         usage='python3.9 botcore.py [-d|--debug] [settings...]',
         epilog='MIT License  Copyright (c) 2021 Семён Мошнко  GitHub: https://github.com/Sovietball1922/LeninBotCore',
         add_help=False)
-    parser.add_argument('--version', action='store_true')
-    parser.add_argument('-v', '--verbose', action='store_true')
-    parser.add_argument('-d', '--debug', action='store_true')
-    parser.add_argument('-m', '--good_morning', action='store_true')
-    parser.add_argument('-n', '--good_night', action='store_true')
-    parser.add_argument('-?', '--help', action='help')
+
+    parser.add_argument(
+        '--version',
+        action='store_true')
+    parser.add_argument(
+        '-d',
+        '--debug',
+        action='store_true',
+        help='Test behave this program')
+    parser.add_argument(
+        '-v',
+        '--verbose',
+        action='store_true')
+    parser.add_argument(
+        '-m',
+        '--mode',
+        default='bot',
+        choices=['bot', 'morning', 'evening'],
+        help='bot: default, morning: Tweet good morning, evening: Tweet good night')
+    parser.add_argument(
+        '-?',
+        '--help',
+        action='help',
+        help='Show this help message.')
+
     arg = parser.parse_args(args)
+
     if (arg.version):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
     elif (arg.good_morning and arg.good_night):
-        arg_values['args']['debugMode'] = arg.debug
-        arg_values['args']['showStream'] = arg.verbose
+        arg_values['args']['debug'] = arg.debug
+        arg_values['args']['verbose'] = arg.verbose
         return arg_values
     else:
-        arg_values['args']['debugMode'] = arg.debug
-        arg_values['args']['showStream'] = arg.verbose
-        arg_values['args']['isGoodmorning'] = arg.good_morning
-        arg_values['args']['isGoodnight'] = arg.good_night
+        arg_values['args']['debug'] = arg.debug
+        arg_values['args']['verbose'] = arg.verbose
+        arg_values['args']['mode'] = arg.mode
         return arg_values
 
 
@@ -397,6 +420,8 @@ if __name__ == '__main__':
             'tweet': core.select_proverb(),
             'path': ''
         }
+
+        list(None)
 
     _is_debug = settings['args']['debugMode'] | settings['main']['debugMode']
     if (_is_debug is False):
