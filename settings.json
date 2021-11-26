@@ -1,8 +1,7 @@
 {
     "main": {
-        "ignoreError": true,
-        "showStream": true,
-        "debugMode": true
+        "verbose": true,
+        "debug": false
     },
     "log": {
         "file": {
@@ -11,7 +10,7 @@
         },
         "stream": {
             "enable": true,
-            "level": "info"
+            "level": "debug"
         }
     },
     "extension": {

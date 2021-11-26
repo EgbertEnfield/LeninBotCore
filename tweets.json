@@ -226,7 +226,7 @@
     "greeting": {
         "morning": {
             "enable": true,
-            "tweet": "Доброе утро!\nおはようございます\n今日も1日労働に力を入れよう",
+            "tweet": "Доброе утро!\nおはようございます",
             "picture": {
                 "enable": true,
                 "directory": "/pic/morning"

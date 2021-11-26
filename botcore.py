@@ -50,7 +50,7 @@ class Twitter:
     def poston_twitter(self, mode: TweetMode, message: str, path: str = ''):
         try:
             _is_fatal = False
-            _is_debug = settings['args']['debugMode'] | settings['main']['debugMode']
+            _is_debug = settings['args']['debug'] | settings['main']['debug']
             if (_is_debug is False):
                 if (mode == self.TweetMode.Picture):
                     self._api.update_with_media(status='', filename=path)
@@ -308,9 +308,8 @@ def load_settings():
         logger.error(f'settings.json did not find in {cwd}. set default')
     finally:
         j_dic.setdefault('main', {})
-        j_dic['main'].setdefault('ignoreError', True)
-        j_dic['main'].setdefault('showStream', True)
-        j_dic['main'].setdefault('debugMode', True)
+        j_dic['main'].setdefault('verbose', True)
+        j_dic['main'].setdefault('debug', False)
 
         j_dic.setdefault('log', {})
         j_dic['log'].setdefault('file', {})
@@ -376,10 +375,6 @@ def parse_args():
     if (arg.version):
         print(f'botcore.py version: {VERSION}')
         sys.exit()
-    elif (arg.good_morning and arg.good_night):
-        arg_values['args']['debug'] = arg.debug
-        arg_values['args']['verbose'] = arg.verbose
-        return arg_values
     else:
         arg_values['args']['debug'] = arg.debug
         arg_values['args']['verbose'] = arg.verbose
@@ -403,27 +398,26 @@ twitter: Final[Twitter] = Twitter()
 
 if __name__ == '__main__':
     tweet = {}
-    if (settings['args']['isGoodmorning']):
+    mode = settings['args']['mode']
+    if (mode == 'morning'):
         li = core.create_greeting(core.Greeting.Morning)
         tweet = {
             'tweet': li[0],
             'path': li[1]
         }
-    elif (settings['args']['isGoodnight']):
+    elif (mode == 'evening'):
         li = core.create_greeting(core.Greeting.Night)
         tweet = {
             'tweet': li[0],
             'path': li[1]
         }
-    else:
+    elif (mode == 'bot'):
         tweet = {
             'tweet': core.select_proverb(),
             'path': ''
         }
 
-        list(None)
-
-    _is_debug = settings['args']['debugMode'] | settings['main']['debugMode']
+    _is_debug = settings['args']['debug'] | settings['main']['debug']
     if (_is_debug is False):
         if (tweet['path'] != ''):
             twitter.poston_twitter(
