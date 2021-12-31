@@ -21,7 +21,6 @@ VERSION = '1.2.0101.029'
 
 class Twitter:
     _api: Final[tweepy.API] = tweepy.API
-    _api_v2: Final[tweepy.Client] = tweepy.Client
 
     class TweetMode(Enum):
         Text = 0
