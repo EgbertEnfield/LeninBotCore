@@ -16,7 +16,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from logging.handlers import TimedRotatingFileHandler
 
 # constants
-VERSION = '1.2.0101.029'
+VERSION = '1.2.1020.5'
 
 
 class Twitter:
@@ -40,7 +40,6 @@ class Twitter:
                 keys['twitter']['tokenSecret'])
             self._api = tweepy.API(auth)
             logger.debug('Bot setup complete')
-
         except FileNotFoundError:
             logger.exception(f'keys.json did not find in {cwd}')
         except KeyError:
@@ -71,13 +70,10 @@ class Twitter:
                 _is_fatal = True
                 logger.error(
                     'Cannot use poston_twitter with debug-mode true')
-
         except FileNotFoundError:
             logger.exception(f'Picture file did not find in {cwd}')
-
         except Exception:
             logger.exception('Ignoring exception in poston_twitter')
-
         else:
             if (_is_fatal is False):
                 logger.info('Tweeted successfully.')
@@ -138,10 +134,10 @@ class Twitter:
             rounding=ROUND_HALF_UP)
 
         if (text_count <= 140):
-            logger.debug(f'Message length was within 140 ({text_count})')
+            logger.debug(f'Message length within 140 ({text_count})')
             return True
         else:
-            logger.error(f'Message length was over 140 ({text_count})')
+            logger.error(f'Message length over 140 ({text_count})')
             return False
 
 
@@ -226,7 +222,6 @@ class BotCore:
 
 
 class Log:
-
     def create_logger(self):
         level_file = logging.INFO
         level_stream = logging.INFO
@@ -303,10 +298,6 @@ class Log:
             return logging.NOTSET
         else:
             return logging.INFO
-
-    def _get_messages(self):
-        with open(messages_file, 'r') as f:
-            json.load(f)
 
 
 def load_settings():
@@ -396,7 +387,6 @@ cwd: Final[str] = os.path.dirname(__file__)
 key_file: Final[str] = f'{cwd}/keys.json'
 tweets_file: Final[str] = f'{cwd}/tweets.json'
 settings_file: Final[str] = f'{cwd}/settings.json'
-messages_file: Final[str] = f'{cwd}/messages.json'
 settings: Final[dict] = parse_args() | load_settings()
 
 # these are must put in this position
