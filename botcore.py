@@ -404,6 +404,11 @@ if __name__ == '__main__':
             'tweet': li[0],
             'path': li[1]
         }
+        tweet = {
+            'tweet': 'С новым годом!\nあけましておめでとうございます',
+            'path': f'{cwd}/pic/newyear.jpg'
+        }
+
     elif (mode == 'evening'):
         li = core.create_greeting(core.Greeting.Night)
         tweet = {
