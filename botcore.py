@@ -16,7 +16,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from logging.handlers import TimedRotatingFileHandler
 
 # constants
-VERSION = '1.2.1020.5'
+VERSION = '1.2.101.036'
 
 
 class Twitter:
